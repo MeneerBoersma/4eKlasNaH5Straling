@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>§5.1 Straling en Bronnen · 4 HAVO</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{background:linear-gradient(160deg,#0a0f1e,#111827 60%,#0a0f1e);min-height:100vh;color:#f1f5f9;font-family:'Segoe UI',system-ui,sans-serif}
+    ::-webkit-scrollbar{width:6px;height:6px}
+    ::-webkit-scrollbar-track{background:rgba(255,255,255,.05)}
+    ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:3px}
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+// ── Shop data (self-contained, geen extern bestand nodig) ──────────────────
+const SHOP = {
+  body:[
+    {id:"body_student",emoji:"🧑‍🎓",name:"Student",   price:0,  unlocked:true},
+    {id:"body_ninja",  emoji:"🥷",  name:"Ninja",     price:200},
+    {id:"body_zombie", emoji:"🧟",  name:"Zombie",    price:280},
+    {id:"body_robot",  emoji:"🤖",  name:"Robot",     price:380},
+    {id:"body_alien",  emoji:"👽",  name:"Alien",     price:480, starReq:15},
+    {id:"body_astro",  emoji:"👨‍🚀", name:"Astronaut", price:650, starReq:30},
+  ],
+  hat:[
+    {id:"hat_none",  emoji:"", name:"Geen hoed",    price:0,  unlocked:true},
+    {id:"hat_helm",  emoji:"🪖",name:"Legerhelm",   price:80},
+    {id:"hat_cap",   emoji:"🧢",name:"Pet",          price:120},
+    {id:"hat_top",   emoji:"🎩",name:"Hoge hoed",   price:240},
+    {id:"hat_crown", emoji:"👑",name:"Kroon",        price:500, starReq:30},
+  ],
+  badge:[
+    {id:"badge_none",  emoji:"", name:"Geen badge",price:0,  unlocked:true},
+    {id:"badge_atom",  emoji:"⚛️",name:"Atoom",     price:100},
+    {id:"badge_bolt",  emoji:"⚡",name:"Bliksem",   price:140},
+    {id:"badge_fire",  emoji:"🔥",name:"Vuur",      price:200},
+    {id:"badge_medal", emoji:"🏅",name:"Medaille",  price:280},
+    {id:"badge_rocket",emoji:"🚀",name:"Raket",     price:360, starReq:18},
+    {id:"badge_trophy",emoji:"🏆",name:"Trofee",    price:450, starReq:28},
+    {id:"badge_gem",   emoji:"💎",name:"Diamant",   price:600, starReq:40},
+  ],
+  bg:[
+    {id:"bg_dark",  color:"linear-gradient(160deg,#0f172a,#1e293b)",name:"Standaard",price:0,  unlocked:true},
+    {id:"bg_space", color:"linear-gradient(160deg,#0f172a,#1e3a8a)",name:"Ruimte",   price:120},
+    {id:"bg_green", color:"linear-gradient(160deg,#064e3b,#10b981)",name:"Natuur",   price:160},
+    {id:"bg_fire",  color:"linear-gradient(160deg,#7f1d1d,#ef4444)",name:"Vuur",     price:280},
+    {id:"bg_gold",  color:"linear-gradient(160deg,#78350f,#d97706)",name:"Goud",     price:400, starReq:20},
+  ],
+};
+const CAT_LABELS={body:"🧍 Karakter",hat:"🎩 Hoeden",badge:"🏅 Badges",bg:"🎨 Achtergrond"};
+const DEFAULT_AVATAR={body:"body_student",hat:"hat_none",badge:"badge_none",bg:"bg_dark"};
+const DEFAULT_OWNED=["body_student","hat_none","badge_none","bg_dark"];
+const SAVE_KEY = "straling_save";
+
+function resolveAvatar(av){
+  return {
+    body: SHOP.body.find(x=>x.id===av.body)||SHOP.body[0],
+    hat:  SHOP.hat.find(x=>x.id===av.hat)||SHOP.hat[0],
+    badge:SHOP.badge.find(x=>x.id===av.badge)||SHOP.badge[0],
+    bg:   SHOP.bg.find(x=>x.id===av.bg)||SHOP.bg[0],
+  };
+}
+function renderAvatarHTML(av,size){
+  const r=resolveAvatar(av);
+  const bFs=Math.round(size*.52),hFs=Math.round(size*.32),baFs=Math.round(size*.24),baSz=Math.round(size*.36);
+  const hat=r.hat.emoji?`<div style="position:absolute;top:${Math.round(size*.04)}px;left:0;right:0;display:flex;justify-content:center"><span style="font-size:${hFs}px">${r.hat.emoji}</span></div>`:'';
+  const badge=r.badge.emoji?`<div style="position:absolute;bottom:4px;right:4px;width:${baSz}px;height:${baSz}px;border-radius:50%;background:rgba(0,0,0,.45);border:1.5px solid rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:${baFs}px">${r.badge.emoji}</div>`:'';
+  return `<div style="width:${size}px;height:${size}px;border-radius:16px;background:${r.bg.color};display:flex;align-items:center;justify-content:center;position:relative;flex-shrink:0;border:2px solid rgba(255,255,255,.15);box-shadow:0 4px 20px rgba(0,0,0,.4);overflow:hidden"><span style="font-size:${bFs}px;line-height:1;position:relative;top:${Math.round(size*.06)}px">${r.body.emoji}</span>${hat}${badge}</div>`;
+}
+function AvatarDisplay({avatar,size=64}){
+  return <span dangerouslySetInnerHTML={{__html:renderAvatarHTML(avatar,size)}} style={{display:"contents"}}/>;
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+const pick=arr=>arr[Math.floor(Math.random()*arr.length)];
+function makeOptions(correct,wrongs){
+  const unique=[...new Set(wrongs.filter(w=>w!==correct))];
+  const all=[correct,...unique.slice(0,3)];
+  let p=1; while(all.length<4) all.push(`${p++}?`);
+  for(let i=all.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[all[i],all[j]]=[all[j],all[i]];}
+  return {options:all,answer:all.indexOf(correct)};
+}
+
+// ── EM-Spectrum interactief SVG ─────────────────────────────────────────────
+const EM_TYPES=[
+  {id:"radio",   label:"Radiogolven",  kleur:"#6366f1",energie:"10⁻²⁷ – 10⁻²⁴ J",ioniserend:false, toepassing:"Radio, wifi, televisie",         symbool:"📡"},
+  {id:"micro",   label:"Microgolven",  kleur:"#8b5cf6",energie:"10⁻²⁴ – 10⁻²³ J",ioniserend:false, toepassing:"Magnetron, radarinstallaties",    symbool:"📶"},
+  {id:"ir",      label:"Infrarood",    kleur:"#f97316",energie:"10⁻²³ – 10⁻¹⁹ J",ioniserend:false, toepassing:"Afstandsbediening, warmtebeelden",symbool:"🌡️"},
+  {id:"licht",   label:"Zichtbaar licht",kleur:"#22c55e",energie:"10⁻¹⁹ J",       ioniserend:false, toepassing:"Zien, LED-verlichting",           symbool:"💡"},
+  {id:"uv",      label:"Ultraviolet",  kleur:"#a855f7",energie:"10⁻¹⁹ – 10⁻¹⁸ J",ioniserend:true,  toepassing:"Zonnebank, sterilisatie",         symbool:"☀️"},
+  {id:"rontgen", label:"Röntgenstraling",kleur:"#06b6d4",energie:"10⁻¹⁸ – 10⁻¹⁵ J",ioniserend:true, toepassing:"Medische foto's, bagagecontrole", symbool:"🏥"},
+  {id:"gamma",   label:"Gammastraling", kleur:"#ef4444",energie:"10⁻¹⁵ – 10⁻¹² J",ioniserend:true,  toepassing:"Kankertherapie, sterilisatie",    symbool:"☢️"},
+];
+
+function EMSpectrumSVG({onSelect,selected}){
+  const W=340,H=110,pad=12,segW=(W-2*pad)/7;
+  return(
+    <div style={{margin:"12px 0"}}>
+      <div style={{fontSize:10,color:"#64748b",textAlign:"center",marginBottom:4,letterSpacing:1}}>KLIK OP EEN SOORT STRALING OM MEER TE ZIEN</div>
+      <div style={{overflowX:"auto"}}>
+      <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{display:"block",minWidth:280}}>
+        {/* Energie-as pijl */}
+        <defs>
+          <marker id="arr" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+            <path d="M0,0 L6,3 L0,6" fill="none" stroke="#60a5fa" strokeWidth="1.2"/>
+          </marker>
+        </defs>
+        <line x1={pad} y1={H-14} x2={W-pad} y2={H-14} stroke="#60a5fa" strokeWidth="1.2" markerEnd="url(#arr)"/>
+        <text x={pad} y={H-4} fill="#64748b" fontSize="8">lage energie</text>
+        <text x={W-pad-52} y={H-4} fill="#64748b" fontSize="8">hoge energie</text>
+        {EM_TYPES.map((t,i)=>{
+          const x=pad+i*segW, isSel=selected===t.id;
+          return(
+            <g key={t.id} onClick={()=>onSelect(isSel?null:t.id)} style={{cursor:"pointer"}}>
+              <rect x={x+1} y={8} width={segW-2} height={72}
+                fill={t.kleur} opacity={selected&&!isSel?0.35:0.85}
+                rx={4} stroke={isSel?"#fff":"transparent"} strokeWidth={isSel?2:0}
+                style={{transition:"all .2s"}}/>
+              {t.ioniserend&&(
+                <text x={x+segW/2} y={22} fill="#fff" fontSize="8" textAnchor="middle" fontWeight="700">⚡</text>
+              )}
+              <text x={x+segW/2} y={52} fill="#fff" fontSize="8" textAnchor="middle" fontWeight="600"
+                style={{pointerEvents:"none"}}>
+                {t.label.split(" ").map((w,wi)=>(
+                  <tspan key={wi} x={x+segW/2} dy={wi===0?0:10}>{w}</tspan>
+                ))}
+              </text>
+            </g>
+          );
+        })}
+        <text x={pad+4*segW+segW/2} y={6} fill="#ef4444" fontSize="7" textAnchor="middle">ioniserend →</text>
+        <line x1={pad+4*segW+4} y1={8} x2={W-pad} y2={8} stroke="#ef4444" strokeWidth="1" strokeDasharray="3,2"/>
+      </svg>
+      </div>
+      {/* Info popup */}
+      {selected&&(()=>{
+        const t=EM_TYPES.find(x=>x.id===selected);
+        if(!t) return null;
+        return(
+          <div style={{background:t.kleur+"22",border:`1.5px solid ${t.kleur}55`,borderRadius:12,padding:"12px 14px",marginTop:8,animation:"popIn .25s ease"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+              <span style={{fontSize:24}}>{t.symbool}</span>
+              <div>
+                <div style={{fontWeight:800,fontSize:14,color:"#f1f5f9"}}>{t.label}</div>
+                <div style={{fontSize:11,color:"#94a3b8"}}>Energie per foton: {t.energie}</div>
+              </div>
+              <div style={{marginLeft:"auto",padding:"3px 10px",borderRadius:20,background:t.ioniserend?"rgba(239,68,68,.2)":"rgba(52,211,153,.2)",border:`1px solid ${t.ioniserend?"#ef4444":"#34d399"}`,fontSize:11,color:t.ioniserend?"#fca5a5":"#86efac",fontWeight:700}}>
+                {t.ioniserend?"⚡ ioniserend":"✓ niet ioniserend"}
+              </div>
+            </div>
+            <div style={{fontSize:12,color:"#cbd5e1"}}><span style={{color:"#94a3b8"}}>Toepassing:</span> {t.toepassing}</div>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
+// ── Doordringend vermogen SVG ───────────────────────────────────────────────
+const PENETRATION={
+  alpha:{label:"α-straling",kleur:"#f97316",emoji:"α",stopt:"papier",beschrijving:"Stopt al bij een vel papier of de huid. Gevaarlijk bij inademing (intern)!"},
+  beta: {label:"β-straling",kleur:"#a855f7",emoji:"β",stopt:"aluminium",beschrijving:"Stopt bij een paar mm aluminium of glas. Gevaarlijker dan alfa van buiten."},
+  rontgen:{label:"Röntgenstraling",kleur:"#06b6d4",emoji:"☢",stopt:"lood (dun)",beschrijving:"Doordringt zachte weefsels, niet botten/metaal. Lood als bescherming."},
+  gamma:{label:"γ-straling",kleur:"#ef4444",emoji:"γ",stopt:"beton/lood (dik)",beschrijving:"Doordringt bijna alles. Meters beton of dik lood nodig als afscherming."},
+};
+const MATERIALS=[
+  {label:"Papier",breedte:28,kleur:"#d4a574"},
+  {label:"Huid",  breedte:22,kleur:"#fbbf80"},
+  {label:"Alum.", breedte:28,kleur:"#94a3b8"},
+  {label:"Lood",  breedte:28,kleur:"#475569"},
+  {label:"Beton", breedte:40,kleur:"#64748b"},
+];
+const STOP_AT={alpha:0,beta:2,rontgen:3,gamma:5};
+
+function PenetrationSVG({selected}){
+  const stopIdx=selected?STOP_AT[selected]:null;
+  const kleur=selected?PENETRATION[selected].kleur:"#94a3b8";
+  const W=320,H=90,startX=30,matStart=80;
+  let cx=matStart;
+  const matRects=MATERIALS.map((m,i)=>{const x=cx;cx+=m.breedte+4;return{...m,x,i};});
+  const lineEndX=stopIdx!==null
+    ?(stopIdx>=MATERIALS.length?cx+20:matRects[stopIdx].x+matRects[stopIdx].breedte/2)
+    :cx+20;
+
+  return(
+    <div style={{margin:"12px 0",background:"rgba(0,0,0,.25)",borderRadius:12,padding:"10px 8px",border:"1px solid rgba(255,255,255,.07)"}}>
+      <div style={{fontSize:10,color:"#64748b",marginBottom:6,letterSpacing:1,textAlign:"center"}}>DOORDRINGEND VERMOGEN — selecteer een stralingsoort</div>
+      <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{display:"block"}}>
+        {/* bron */}
+        <circle cx={startX} cy={45} r={14} fill={selected?kleur+"33":"rgba(255,255,255,.08)"} stroke={selected?kleur:"#334155"} strokeWidth="1.5"/>
+        <text x={startX} y={49} fill={selected?kleur:"#64748b"} fontSize="12" textAnchor="middle" fontWeight="700">
+          {selected?PENETRATION[selected].emoji:"?"}
+        </text>
+        {/* straal lijn */}
+        {selected&&(
+          <line x1={startX+14} y1={45} x2={lineEndX} y2={45}
+            stroke={kleur} strokeWidth="2.5" strokeDasharray={stopIdx!==null&&stopIdx<MATERIALS.length?"none":"4,3"}
+            markerEnd="url(#radarr)" opacity={0.9}/>
+        )}
+        <defs>
+          <marker id="radarr" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+            <path d="M0,0 L6,3 L0,6" fill="none" stroke={kleur||"#fff"} strokeWidth="1.2"/>
+          </marker>
+        </defs>
+        {/* materialen */}
+        {matRects.map((m,i)=>{
+          const stopped=selected&&stopIdx!==null&&i>=stopIdx&&stopIdx<MATERIALS.length;
+          return(
+            <g key={i}>
+              <rect x={m.x} y={16} width={m.breedte} height={58} fill={m.kleur} opacity={stopped?.3:.85} rx={3}/>
+              <text x={m.x+m.breedte/2} y={72} fill={stopped?"#475569":"#e2e8f0"} fontSize="7" textAnchor="middle">{m.label}</text>
+            </g>
+          );
+        })}
+        {/* label bron */}
+        <text x={startX} y={H-6} fill="#64748b" fontSize="7" textAnchor="middle">Bron</text>
+      </svg>
+      {selected&&(
+        <div style={{fontSize:12,color:"#cbd5e1",marginTop:4,padding:"0 4px"}}>
+          <span style={{color:kleur,fontWeight:700}}>{PENETRATION[selected].label}:</span> {PENETRATION[selected].beschrijving}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Vragen genereren ───────────────────────────────────────────────────────
+
+// LEVEL 1 — Het EM-spectrum (begripskennis)
+const L1_QUESTIONS=[
+  {type:"spectrum_quiz",
+   question:"Welke soort straling heeft de MEESTE energie per foton?",
+   preQuestion:"Welke stralingsoort denk jij dat het gevaarlijkst is voor mensen? Kijk naar het spectrum en bedenk dit voor jezelf.",
+   options:["Radiogolven","Zichtbaar licht","Röntgenstraling","Gammastraling"],
+   answer:3,
+   explanation:"Gammastraling heeft de hoogste energie per foton (10⁻¹² J). Hoe hoger de energie per foton, hoe gevaarlijker de straling voor levend weefsel."},
+  {type:"spectrum_quiz",
+   question:"Welke eigenschap maakt röntgen- en gammastraling gevaarlijk voor mensen, maar radiogolven niet?",
+   options:["Radiogolven reizen langzamer","Röntgen- en gammastraling zijn ioniserend","Radiogolven zijn zichtbaar","Röntgenstraling heeft een lagere frequentie"],
+   answer:1,
+   explanation:"Ioniserende straling heeft genoeg energie om elektronen uit atomen te slaan. Hierdoor kunnen moleculen in lichaamscellen veranderen of afsterven."},
+  {type:"spectrum_quiz",
+   question:"Een tv-afstandsbediening werkt met infraroodstraling. Is dit ioniserend?",
+   options:["Ja, infrarood heeft veel energie","Nee, infrarood is niet ioniserend","Alleen bij lange blootstelling","Dat hangt af van de batterij"],
+   answer:1,
+   explanation:"Infraroodstraling heeft te weinig energie per foton om atomen te ioniseren. Alleen UV, röntgen- en gammastraling zijn ioniserend in het EM-spectrum."},
+  {type:"spectrum_quiz",
+   question:"Elektromagnetische straling bestaat uit fotonen. Wat dragen fotonen met zich mee?",
+   options:["Massa","Elektrische lading","Stralingsenergie","Radioactiviteit"],
+   answer:2,
+   explanation:"Fotonen zijn stralingspakketjes zonder massa of lading. Ze dragen wél stralingsenergie mee. Hoe hoger de frequentie van de straling, hoe meer energie per foton."},
+  {type:"spectrum_quiz",
+   question:"Welke soorten EM-straling zijn ioniserend? (volgens Binas tabel 19B)",
+   options:["Radiogolven, microgolven en infrarood","UV, röntgen- en gammastraling","Alleen gammastraling","Alle soorten EM-straling"],
+   answer:1,
+   explanation:"UV, röntgen- en gammastraling hebben genoeg energie per foton (>10 eV) om te ioniseren. Radiogolven, microgolven, infrarood en zichtbaar licht zijn niet ioniserend."},
+  {type:"spectrum_quiz",
+   question:"Microgolven en röntgenstraling zijn beide EM-straling. Wat is het belangrijkste verschil?",
+   options:["Röntgenstraling is sneller","Microgolven zijn deeltjesstraling","Röntgenstraling heeft veel meer energie per foton","Microgolven kunnen door muren gaan"],
+   answer:2,
+   explanation:"Beide reizen met de lichtsnelheid, maar röntgenfotonen hebben enorm veel meer energie dan microgolfphotonen. Daardoor kan röntgenstraling ioniseren en is het biologisch gevaarlijker."},
+];
+
+// LEVEL 2 — Ioniserende straling (doordringend vermogen)
+const L2_QUESTIONS=[
+  {type:"penetration_quiz",
+   penetrationKey:"alpha",
+   question:"α-straling heeft het kleinste doordringend vermogen. Waardoor wordt het al gestopt?",
+   options:["Een dik betonblok","Een paar meter lucht of een vel papier","Een dikke loden plaat","Aluminiumfolie"],
+   answer:1,
+   explanation:"α-straling bestaat uit zware deeltjes (2 protonen + 2 neutronen) en geeft snel energie af. Al bij een vel papier of de buitenste huidlaag wordt het gestopt."},
+  {type:"penetration_quiz",
+   penetrationKey:"beta",
+   question:"β-straling dringt verder door dan α-straling. Welk materiaal stopt het?",
+   options:["Een vel papier","Aluminiumfolie of een paar mm glas","Een dik betonblok","Niets stopt β-straling"],
+   answer:1,
+   explanation:"β-deeltjes (elektronen) zijn kleiner en sneller dan α-deeltjes. Ze worden tegengehouden door een paar millimeter aluminium of glas, maar dringen door papier en huid heen."},
+  {type:"penetration_quiz",
+   penetrationKey:"gamma",
+   question:"γ-straling is het moeilijkst te stoppen. Waarom is dat?",
+   options:["Gammastraling is een deeltje met veel massa","Gamma is elektromagnetische straling met de hoogste energie — ze dringen overal door","Gammastraling reist sneller dan andere straling","Gamma bestaat uit protonen"],
+   answer:1,
+   explanation:"γ-straling heeft de hoogste energie per foton van alle ioniserende straling. Er zijn meters beton of dikke loodplaten nodig om het effectief te stoppen."},
+  {type:"text",
+   question:"Welke straling is het meest ioniserend, maar het minst doordringend?",
+   options:["γ-straling","β-straling","α-straling","Röntgenstraling"],
+   answer:2,
+   explanation:"α-straling ioniseert heel sterk (geeft veel energie af per botsing) maar wordt daardoor ook snel afgestopt. Stopt al bij een vel papier — maar is gevaarlijk als je het inademt!"},
+  {type:"text",
+   question:"In een ziekenhuis beschermen radiologen zich met een loden schort. Tegen welke straling beschermt dit het best?",
+   options:["Alleen α-straling","Alleen β-straling","Röntgen- en γ-straling","Het beschermt nergens tegen"],
+   answer:2,
+   explanation:"Lood is een zwaar metaal dat röntgen- en gammastraling effectief absorbeert. α- en β-straling worden al gestopt door dunnere materialen zoals kleding."},
+  {type:"text",
+   question:"Een loodkoker wordt gebruikt om radioactieve bronnen in te bewaren. Welke eigenschap van lood maakt het geschikt?",
+   options:["Lood is goedkoop","Lood absorbeert ioniserende straling effectief","Lood is magnetisch","Lood isoleert elektrisch"],
+   answer:1,
+   explanation:"Lood is een zwaar element met veel protonen in de kern. Hierdoor absorbeert het ioniserende straling (röntgen en gamma) zeer effectief en beperkt zo de blootstelling."},
+];
+
+// LEVEL 3 — Bronnen van straling
+const L3_QUESTIONS=[
+  {type:"text",
+   question:"Welke van deze bronnen is een NATUURLIJKE bron van ioniserende straling?",
+   options:["Een röntgenapparaat in een ziekenhuis","Een kerncentrale","Kosmische straling van de zon","Een rookmelder"],
+   answer:2,
+   explanation:"Kosmische straling is altijd aanwezig en afkomstig van de zon en sterren. Röntgenapparaten, kerncentrales en rookmelders zijn kunstmatige bronnen."},
+  {type:"text",
+   question:"Wat is achtergrondstraling?",
+   options:["Straling die alleen 's nachts aanwezig is","De straling van alle bronnen samen in je omgeving, altijd aanwezig","Straling van beeldschermen","Alleen straling van kerncentrales"],
+   answer:1,
+   explanation:"Achtergrondstraling is de permanente, meetbare hoeveelheid straling in je omgeving — afkomstig van alle natuurlijke en kunstmatige bronnen samen. Meetbaar met een gm-teller."},
+  {type:"text",
+   question:"Een arts brengt een radioactieve tracer in het lichaam. Wat is het doel hiervan?",
+   options:["De patiënt bestralen om kankercellen te doden","Zichtbaar maken hoe de stof zich door het lichaam verspreidt (diagnostisch)","De patiënt beschermen tegen externe straling","Radioactief materiaal opslaan in het lichaam"],
+   answer:1,
+   explanation:"Tracers zijn diagnostische toepassingen: de radioactieve stof verspreidt zich door het lichaam en de straling die het uitzendt, maakt zichtbaar waar de stof naartoe gaat — bijvoorbeeld bij schildklieronderzoek."},
+  {type:"text",
+   question:"Waarom is de achtergrondstraling in een vliegtuig op 12 km hoogte groter dan op de grond?",
+   options:["Vliegtuigen genereren extra straling","Er is minder atmosfeer om kosmische straling te absorberen","Vliegtuigmotoren zijn radioactief","Hogere temperatuur geeft meer straling"],
+   answer:1,
+   explanation:"De atmosfeer absorbeert een groot deel van de kosmische straling. Op grote hoogte is er minder atmosfeer als bescherming, dus ontvang je meer kosmische straling."},
+  {type:"text",
+   question:"Welke bewering over aardse straling klopt?",
+   options:["Aardse straling komt alleen uit kerncentrales","Graniet en bepaalde bouwmaterialen bevatten van nature radioactieve stoffen","Aardse straling bestaat alleen uit gammastraling","Aardse straling is pas ontdekt na kernproeven"],
+   answer:1,
+   explanation:"Graniet, klei en gips bevatten van nature sporen van radioactieve elementen zoals uranium en radium. Dit is een volledig natuurlijke bron van ioniserende straling."},
+  {type:"text",
+   question:"Welke toepassing van straling is THERAPEUTISCH (genezend bedoeld)?",
+   options:["Een röntgenfoto maken van een gebroken been","Een bagageband op een vliegveld","Kankercellen bestralen met gerichte gammastraling","Een gm-teller gebruiken om achtergrondstraling te meten"],
+   answer:2,
+   explanation:"Therapeutisch betekent bedoeld om te genezen of te behandelen. Kankercellen bestralen met gammastraling is een therapeutische toepassing. Een röntgenfoto is diagnostisch."},
+];
+
+// LEVEL 4 — Bestraling, besmetting & redeneren (C-niveau)
+const L4_QUESTIONS=[
+  {type:"text",
+   question:"Wat is het verschil tussen bestraling en besmetting?",
+   options:[
+     "Bij bestraling zit de bron buiten het lichaam; bij besmetting zit de bron in of op het lichaam",
+     "Bestraling is altijd gevaarlijker dan besmetting",
+     "Bij besmetting gebruik je altijd een röntgenapparaat",
+     "Er is geen verschil — het zijn synoniemen"
+   ],
+   answer:0,
+   explanation:"Bij bestraling (bijv. röntgenfoto) is de bron extern. Bij besmetting draag je de radioactieve bron bij je — op of in je lichaam. Besmetting is doorgaans gevaarlijker omdat je de bron niet kunt wegleggen."},
+  {type:"text",
+   question:"Na de kernramp in Fukushima (2011) kwamen radioactieve stoffen in zee. Worden vissen daardoor bestraald, besmet, of allebei?",
+   options:[
+     "Alleen bestraald — de straling komt van buitenaf",
+     "Alleen besmet — ze eten radioactief materiaal",
+     "Allebei: externe straling (bestraling) én radioactieve stoffen in het lichaam (besmetting)",
+     "Geen van beide — water beschermt volledig"
+   ],
+   answer:2,
+   explanation:"De vissen worden bestraald door radioactieve stoffen in het water om hen heen. Tegelijk eten en ademen ze radioactieve deeltjes in, wat besmetting is. Beide processen zijn dus van toepassing."},
+  {type:"text",
+   question:"Iemand eet een vis die radioactief besmet is. Wordt deze persoon bestraald, besmet, of allebei?",
+   options:[
+     "Alleen bestraald",
+     "Alleen besmet",
+     "Allebei: de radioactieve stoffen komen in het lichaam (besmetting) en stralen dan van binnenuit (bestraling)",
+     "Geen van beide — koken maakt straling onschadelijk"
+   ],
+   answer:2,
+   explanation:"Door het eten komen radioactieve stoffen in het lichaam — dat is besmetting. Vervolgens stralen die stoffen van binnenuit, wat ook bestraling van het omliggende weefsel veroorzaakt. Koken heeft geen effect op radioactiviteit."},
+  {type:"text",
+   question:"Welke uitspraak over ioniserende straling is JUIST?",
+   options:[
+     "Ioniserende straling bestaat altijd uit kleine deeltjes",
+     "Een smartphone zendt ioniserende straling uit",
+     "Iedereen ontvangt dagelijks ioniserende straling door achtergrondstraling",
+     "Je ontvangt geen achtergrondstraling als je binnenblijft"
+   ],
+   answer:2,
+   explanation:"Achtergrondstraling is overal aanwezig — ook binnenshuis, door bouwmaterialen en kosmische straling. Je ontkomt er niet aan. γ-straling en röntgenstraling zijn elektromagnetisch (geen deeltjes). Een smartphone zendt niet-ioniserende straling uit."},
+  {type:"text",
+   question:"Voor kinderen is ioniserende straling gevaarlijker dan voor volwassenen. Wat is de meest waarschijnlijke verklaring?",
+   options:[
+     "Kinderen bewegen meer in de buurt van stralingsbronnen",
+     "Kinderen hebben dunnere huid",
+     "Cellen van kinderen delen sneller — mutaties hebben meer effect op de verdere ontwikkeling",
+     "Kinderen zijn kleiner, dus de straling is sterker geconcentreerd"
+   ],
+   answer:2,
+   explanation:"Snel delende cellen zijn gevoeliger voor ioniserende straling. Bij kinderen delen cellen veel vaker dan bij volwassenen (groei). Een mutatie in een stamcel kan daardoor grotere gevolgen hebben voor de verdere lichamelijke ontwikkeling."},
+  {type:"text",
+   question:"Een gm-teller meet achtergrondstraling. Wat meet hij NIET betrouwbaar?",
+   options:[
+     "Gammastraling",
+     "Bètastraling",
+     "Alle α-straling van een ingesloten bron (want α dringt de detector moeilijk in)",
+     "Röntgenstraling"
+   ],
+   answer:2,
+   explanation:"α-straling heeft een zeer klein doordringend vermogen en wordt al gestopt door een dun laagje materiaal. Als de bron afgeschermd is of ver weg staat, bereikt de α-straling de detector nauwelijks en wordt ze onbetrouwbaar gemeten."},
+];
+
+const LEVELS=[
+  {id:1,title:"Het EM-spectrum",    icon:"🌈",description:"Soorten straling herkennen en ordenen op energie",kleur:"#6366f1",bg:"linear-gradient(135deg,#1e1b4b,#312e81)",questions:L1_QUESTIONS,hasSpectrum:true},
+  {id:2,title:"Ioniserende straling",icon:"⚡",description:"Doordringend en ioniserend vermogen vergelijken",kleur:"#f97316",bg:"linear-gradient(135deg,#431407,#7c2d12)",questions:L2_QUESTIONS,hasPenetration:true},
+  {id:3,title:"Bronnen van straling",icon:"🌍",description:"Natuurlijk vs kunstmatig, toepassingen",        kleur:"#22c55e",bg:"linear-gradient(135deg,#052e16,#065f46)",questions:L3_QUESTIONS},
+  {id:4,title:"Bestraling & besmetting",icon:"☢️",description:"Analyseren en redeneren met praktijksituaties",kleur:"#ef4444",bg:"linear-gradient(135deg,#450a0a,#7f1d1d)",questions:L4_QUESTIONS},
+];
+
+// ── Zelfcheck component ────────────────────────────────────────────────────
+const SELFCHECK=[
+  {stelling:"α-straling stopt al bij een vel papier.", juist:true},
+  {stelling:"Gammastraling is niet ioniserend.",       juist:false},
+  {stelling:"Besmetting is doorgaans gevaarlijker dan bestraling.", juist:true},
+];
+function SelfCheck({onDone}){
+  const [antw,setAntw]=useState([null,null,null]);
+  const [checked,setChecked]=useState(false);
+  const score=antw.filter((a,i)=>a===SELFCHECK[i].juist).length;
+  return(
+    <div style={{background:"rgba(251,191,36,.06)",border:"1px solid rgba(251,191,36,.2)",borderRadius:14,padding:16,marginBottom:16}}>
+      <div style={{fontWeight:700,fontSize:14,color:"#fbbf24",marginBottom:12}}>🧠 Zelfcheck — snap je dit al?</div>
+      {SELFCHECK.map((s,i)=>(
+        <div key={i} style={{marginBottom:10}}>
+          <div style={{fontSize:13,color:"#e2e8f0",marginBottom:6}}>{i+1}. {s.stelling}</div>
+          <div style={{display:"flex",gap:8}}>
+            {["Juist","Onjuist"].map(opt=>{
+              const val=opt==="Juist";
+              const isChosen=antw[i]===val;
+              const isCorrect=checked&&val===s.juist;
+              const isWrong=checked&&isChosen&&!isCorrect;
+              return(
+                <button key={opt} onClick={()=>{if(!checked){const n=[...antw];n[i]=val;setAntw(n);}}}
+                  style={{padding:"6px 16px",borderRadius:8,border:`1.5px solid ${isCorrect?"#34d399":isWrong?"#ef4444":isChosen?"#fbbf24":"rgba(255,255,255,.15)"}`,
+                    background:isCorrect?"rgba(52,211,153,.15)":isWrong?"rgba(239,68,68,.15)":isChosen?"rgba(251,191,36,.15)":"rgba(255,255,255,.04)",
+                    color:isCorrect?"#34d399":isWrong?"#ef4444":isChosen?"#fbbf24":"#94a3b8",
+                    cursor:checked?"default":"pointer",fontSize:13,fontWeight:600}}>
+                  {opt}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+      {!checked?(
+        <button onClick={()=>setChecked(true)} disabled={antw.includes(null)}
+          style={{marginTop:8,padding:"8px 20px",background:antw.includes(null)?"rgba(255,255,255,.05)":"rgba(251,191,36,.2)",border:`1px solid ${antw.includes(null)?"rgba(255,255,255,.1)":"#fbbf24"}`,borderRadius:8,color:antw.includes(null)?"#475569":"#fbbf24",fontWeight:700,cursor:antw.includes(null)?"default":"pointer",fontSize:13}}>
+          Controleer
+        </button>
+      ):(
+        <div style={{marginTop:10}}>
+          <div style={{color:score===3?"#34d399":score>=2?"#fbbf24":"#f87171",fontWeight:700,fontSize:14}}>
+            {score===3?"✅ Alles goed!":score===2?"⚠️ Bijna — check de uitleg hierboven":"❌ Herhaal level 1 en 2 nog eens"}
+          </div>
+          <button onClick={onDone} style={{marginTop:8,padding:"7px 16px",background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.15)",borderRadius:8,color:"#e2e8f0",cursor:"pointer",fontSize:13}}>
+            Verder →
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Vraag weergave ─────────────────────────────────────────────────────────
+function QuestionCard({q,sel,done,onSelect,shake,lvl}){
+  const [specSel,setSpecSel]=useState(null);
+  const [penSel,setPenSel]=useState(null);
+  const kleur=lvl.kleur;
+
+  return(
+    <div style={{background:"rgba(255,255,255,.04)",borderRadius:16,padding:16,border:`1px solid ${kleur}30`,marginBottom:12,animation:shake?"shake .6s ease":"none"}}>
+      {/* Voorspellingsvraag */}
+      {q.preQuestion&&!done&&(
+        <div style={{background:"rgba(251,191,36,.07)",border:"1px solid rgba(251,191,36,.2)",borderRadius:10,padding:"10px 12px",marginBottom:12}}>
+          <div style={{fontSize:11,color:"#fbbf24",fontWeight:700,marginBottom:4}}>💭 DENKPAUZE</div>
+          <div style={{fontSize:13,color:"#cbd5e1"}}>{q.preQuestion}</div>
+        </div>
+      )}
+
+      <div style={{fontSize:14,fontWeight:600,lineHeight:1.6,marginBottom:12}}>{q.question}</div>
+
+      {/* Interactief spectrum */}
+      {q.type==="spectrum_quiz"&&(
+        <EMSpectrumSVG selected={specSel} onSelect={setSpecSel}/>
+      )}
+
+      {/* Doordringend vermogen */}
+      {q.type==="penetration_quiz"&&(
+        <PenetrationSVG selected={done?q.penetrationKey:penSel}/>
+      )}
+      {q.type==="penetration_quiz"&&!done&&(
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
+          {Object.entries(PENETRATION).map(([k,v])=>(
+            <button key={k} onClick={()=>setPenSel(penSel===k?null:k)}
+              style={{padding:"4px 10px",borderRadius:20,border:`1px solid ${penSel===k?v.kleur:"rgba(255,255,255,.15)"}`,background:penSel===k?v.kleur+"22":"rgba(255,255,255,.04)",color:penSel===k?v.kleur:"#94a3b8",fontSize:12,cursor:"pointer"}}>
+              {v.emoji} {v.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Hoofdapp ───────────────────────────────────────────────────────────────
+function App(){
+  const [screen,setScreen]  = useState("home");
+  const [lvlIdx,setLvlIdx]  = useState(0);
+  const [qIdx,setQIdx]       = useState(0);
+  const [sel,setSel]         = useState(null);
+  const [done,setDone]       = useState(false);
+  const [scores,setScores]   = useState([0,0,0,0]);
+  const [pts,setPts]         = useState(0);
+  const [streak,setStreak]   = useState(0);
+  const [maxStr,setMaxStr]   = useState(0);
+  const [stars,setStars]     = useState([0,0,0,0]);
+  const [shake,setShake]     = useState(false);
+  const [showSelfCheck,setShowSelfCheck] = useState(false);
+  const [selfCheckDone,setSelfCheckDone] = useState(false);
+  const [avatar,setAvatar]   = useState(DEFAULT_AVATAR);
+  const [owned,setOwned]     = useState(DEFAULT_OWNED);
+  const [shopCat,setShopCat] = useState("body");
+  const [buyFlash,setBuyFlash]= useState(null);
+
+  useEffect(()=>{
+    try{
+      const raw=localStorage.getItem(SAVE_KEY);
+      if(raw){
+        const d=JSON.parse(raw);
+        if(d.avatar) setAvatar({...DEFAULT_AVATAR,...d.avatar});
+        if(d.owned)  setOwned(d.owned);
+        if(d.pts!==undefined) setPts(d.pts);
+        if(d.stars) setStars(d.stars);
+      }
+    }catch(e){}
+  },[]);
+
+  const persist=(av,ow,p,st)=>{
+    try{
+      const prev=JSON.parse(localStorage.getItem(SAVE_KEY))||{};
+      localStorage.setItem(SAVE_KEY,JSON.stringify({...prev,avatar:av,owned:ow,pts:p,...(st?{stars:st}:{})}));
+    }catch(e){}
+  };
+
+  const addPts=n=>setPts(p=>{const np=p+n;persist(avatar,owned,np);return np;});
+
+  const buyItem=item=>{
+    if(owned.includes(item.id)||pts<item.price) return;
+    const no=[...owned,item.id],np=pts-item.price;
+    setOwned(no);setPts(np);setBuyFlash(item.id);setTimeout(()=>setBuyFlash(null),1200);persist(avatar,no,np);
+  };
+  const equipItem=(cat,item)=>{
+    if(!owned.includes(item.id)) return;
+    const na={...avatar,[cat]:item.id};setAvatar(na);persist(na,owned,pts);
+  };
+
+  const lvl=LEVELS[lvlIdx];
+  const qs=lvl?.questions;
+  const q=qs?.[qIdx];
+  const total=qs?.length;
+  const correct=done&&sel===q?.answer;
+  const goHome=()=>{setScreen("home");setSel(null);setDone(false);setShowSelfCheck(false);};
+
+  const handleConfirm=()=>{
+    if(sel===null) return;
+    setDone(true);
+    if(sel===q.answer){
+      const ns=streak+1;setStreak(ns);setMaxStr(s=>Math.max(s,ns));
+      addPts(10+(ns>2?5:0));
+      setScores(s=>{const n=[...s];n[lvlIdx]++;return n;});
+    } else {setStreak(0);setShake(true);setTimeout(()=>setShake(false),600);}
+  };
+
+  const handleNext=()=>{
+    setSel(null);setDone(false);
+    // Na level 2: zelfcheck tonen
+    if(qIdx+1<total){
+      setQIdx(i=>i+1);
+    } else {
+      const pct=scores[lvlIdx]/total;
+      const ns=pct>=.85?3:pct>=.6?2:pct>=.33?1:0;
+      setStars(s=>{const n=[...s];n[lvlIdx]=ns;persist(avatar,owned,pts,n);return n;});
+      if(lvlIdx===1&&!selfCheckDone){
+        setShowSelfCheck(true);
+      } else {
+        setScreen("result");
+      }
+    }
+  };
+
+  const startLevel=i=>{
+    setLvlIdx(i);setQIdx(0);setSel(null);setDone(false);setShowSelfCheck(false);
+    setScores(s=>{const n=[...s];n[i]=0;return n;});
+    setScreen("question");
+  };
+
+  const totalStars=stars.reduce((a,b)=>a+b,0),maxStars=stars.length*3;
+
+  return(
+    <div style={{minHeight:"100vh",fontFamily:"'Segoe UI',system-ui,sans-serif",color:"#f1f5f9",paddingBottom:40}}>
+      <style>{`
+        @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+        @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}60%{transform:translateX(8px)}}
+        @keyframes popIn{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
+        .ch:hover{transform:translateY(-3px);box-shadow:0 12px 40px rgba(0,0,0,.5)!important;transition:all .2s}
+        .ob:hover{border-color:#fbbf24!important;background:rgba(251,191,36,.08)!important}
+        button{font-family:inherit}
+        .layout{display:flex;min-height:calc(100vh - 49px)}
+        .sidebar{width:220px;flex-shrink:0;display:flex;flex-direction:column;padding:20px 16px;border-right:1px solid rgba(255,255,255,.07);height:calc(100vh - 49px);position:sticky;top:49px;overflow-y:auto}
+        .main{flex:1;min-width:0;padding:24px 40px;max-width:820px}
+        .lgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+        @media(max-width:700px){.sidebar{display:none!important}.main{padding:16px 14px}}
+        @media(max-width:480px){.lgrid{grid-template-columns:1fr}}
+      `}</style>
+
+      {/* HEADER */}
+      <div style={{background:"rgba(255,255,255,.03)",borderBottom:"1px solid rgba(255,255,255,.07)",padding:"9px 16px",display:"flex",alignItems:"center",gap:10,position:"sticky",top:0,zIndex:10,backdropFilter:"blur(8px)"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <span style={{fontSize:20}}>☢️</span>
+          <div><div style={{fontWeight:800,fontSize:14}}>Straling en Bronnen</div><div style={{fontSize:10,color:"#64748b"}}>4 HAVO · §5.1 · Noordhoff</div></div>
+        </div>
+        <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:12}}>
+          {screen!=="home"&&<button onClick={goHome} style={{background:"rgba(255,255,255,.07)",border:"1px solid rgba(255,255,255,.12)",borderRadius:8,padding:"5px 10px",color:"#94a3b8",cursor:"pointer",fontSize:12}}>← Levels</button>}
+          <div style={{textAlign:"center"}}>
+            <div style={{fontSize:16,fontWeight:700,color:"#fbbf24"}}>{pts}</div>
+            <div style={{fontSize:10,color:"#64748b"}}>punten</div>
+          </div>
+          <span dangerouslySetInnerHTML={{__html:renderAvatarHTML(avatar,36)}}/>
+        </div>
+      </div>
+
+      <div className="layout">
+        {/* SIDEBAR */}
+        <div className="sidebar">
+          <div style={{textAlign:"center",marginBottom:16,padding:"14px 10px",background:"rgba(255,255,255,.04)",borderRadius:14,border:"1px solid rgba(255,255,255,.07)"}}>
+            <button onClick={()=>setScreen("shop")} style={{background:"none",border:"none",cursor:"pointer",display:"block",margin:"0 auto 8px"}}>
+              <AvatarDisplay avatar={avatar} size={72}/>
+            </button>
+            <div style={{fontWeight:700,fontSize:12,marginBottom:1}}>Jouw avatar</div>
+            <div style={{fontSize:10,color:"#94a3b8",marginBottom:10}}>klik om aan te passen</div>
+            <div style={{fontSize:20,fontWeight:800,color:"#fbbf24"}}>{pts}</div>
+            <div style={{fontSize:10,color:"#64748b"}}>punten</div>
+          </div>
+
+          <div style={{marginBottom:14}}>
+            <div style={{fontSize:10,color:"#64748b",letterSpacing:1,marginBottom:8,fontWeight:700}}>LEERDOELEN</div>
+            {["Zes soorten EM-straling noemen","Vier soorten ioniserende straling vergelijken","Ioniserend & doordringend vermogen uitleggen","Bronnen: natuurlijk vs kunstmatig","Verschil bestraling en besmetting"].map((d,i)=>(
+              <div key={i} style={{fontSize:11,color:stars[Math.floor(i/1.3)]>0?"#34d399":"#64748b",display:"flex",gap:6,marginBottom:4,alignItems:"center"}}>
+                <span>{stars[Math.floor(i/1.3)]>0?"✓":"○"}</span>{d}
+              </div>
+            ))}
+          </div>
+
+          <div style={{marginBottom:14}}>
+            <div style={{fontSize:10,color:"#64748b",letterSpacing:1,marginBottom:8,fontWeight:700}}>LEVELS</div>
+            {LEVELS.map((l,i)=>(
+              <div key={i} onClick={()=>startLevel(i)} className="ch"
+                style={{display:"flex",alignItems:"center",gap:8,padding:"9px 10px",borderRadius:10,marginBottom:5,
+                  background:screen==="question"&&lvlIdx===i?l.bg:"rgba(255,255,255,.03)",
+                  border:`1px solid ${screen==="question"&&lvlIdx===i?l.kleur+"60":"rgba(255,255,255,.06)"}`,cursor:"pointer"}}>
+                <span style={{fontSize:16,flexShrink:0}}>{l.icon}</span>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:11,fontWeight:600,color:"#cbd5e1",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{l.title}</div>
+                  <div style={{display:"flex",gap:1,marginTop:2}}>{[1,2,3].map(s=><span key={s} style={{fontSize:9,opacity:stars[i]>=s?1:.2}}>⭐</span>)}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{marginTop:"auto",padding:"10px",background:"rgba(255,255,255,.03)",borderRadius:10,border:"1px solid rgba(255,255,255,.06)"}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:6,fontSize:10,color:"#64748b",fontWeight:700}}>
+              <span>STERREN</span><span style={{color:"#fbbf24"}}>{totalStars}/{maxStars}</span>
+            </div>
+            <div style={{height:5,background:"rgba(255,255,255,.06)",borderRadius:999}}>
+              <div style={{height:"100%",borderRadius:999,background:"linear-gradient(90deg,#fbbf24,#f59e0b)",width:`${(totalStars/maxStars)*100}%`,transition:"width .6s"}}/>
+            </div>
+          </div>
+          <button onClick={()=>setScreen("shop")} className="ch" style={{marginTop:8,width:"100%",padding:"9px",background:"linear-gradient(135deg,#1e3a5f,#1e293b)",border:"1px solid rgba(96,165,250,.25)",borderRadius:10,color:"#93c5fd",fontWeight:600,cursor:"pointer",fontSize:12,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+            🛍️ Avatar Winkel
+          </button>
+        </div>
+
+        {/* MAIN */}
+        <div className="main">
+
+          {/* HOME */}
+          {screen==="home"&&(
+            <div style={{animation:"fadeIn .4s ease"}}>
+              <div style={{textAlign:"center",marginBottom:28}}>
+                <div style={{fontSize:56,marginBottom:10}}>☢️</div>
+                <h1 style={{fontSize:26,fontWeight:900,margin:"0 0 8px",background:"linear-gradient(90deg,#6366f1,#f97316,#ef4444)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>Straling en Bronnen</h1>
+                <p style={{color:"#94a3b8",fontSize:14}}>§5.1 · Havo 4 · Kies een level en verdien punten</p>
+              </div>
+
+              <div className="lgrid" style={{marginBottom:12}}>
+                {LEVELS.map((l,i)=>(
+                  <div key={i} className="ch" onClick={()=>startLevel(i)}
+                    style={{background:l.bg,borderRadius:16,padding:"18px 14px",cursor:"pointer",border:`1px solid ${l.kleur}40`,position:"relative",overflow:"hidden"}}>
+                    <div style={{fontSize:30,marginBottom:6}}>{l.icon}</div>
+                    <div style={{fontWeight:700,fontSize:15,marginBottom:3}}>{l.title}</div>
+                    <div style={{fontSize:12,color:"rgba(255,255,255,.65)",lineHeight:1.4}}>{l.description}</div>
+                    <div style={{marginTop:8,display:"flex",gap:2}}>{[1,2,3].map(s=><span key={s} style={{fontSize:13,opacity:stars[i]>=s?1:.2}}>⭐</span>)}</div>
+                    <div style={{position:"absolute",top:8,right:8,background:"rgba(0,0,0,.3)",borderRadius:6,padding:"2px 7px",fontSize:10,color:l.kleur}}>{l.questions.length} vr.</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Theorie knop */}
+              <button onClick={()=>setScreen("theorie")} className="ch"
+                style={{width:"100%",marginBottom:14,padding:"14px 18px",background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.1)",borderRadius:14,color:"#e2e8f0",fontWeight:600,fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",gap:12,textAlign:"left"}}>
+                <span style={{fontSize:26}}>📖</span>
+                <div>
+                  <div style={{fontWeight:700,fontSize:14}}>Theorie overzicht</div>
+                  <div style={{fontSize:12,color:"#94a3b8",marginTop:1}}>Lees de samenvatting vóór of ná het oefenen</div>
+                </div>
+                <span style={{marginLeft:"auto",color:"#64748b",fontSize:18}}>›</span>
+              </button>
+
+              <div style={{background:"rgba(255,255,255,.03)",borderRadius:12,padding:14,border:"1px solid rgba(255,255,255,.06)"}}>
+                <div style={{fontSize:11,color:"#64748b",marginBottom:10,fontWeight:700,letterSpacing:.5}}>📚 NA DIT ARRANGEMENT KUN JE…</div>
+                {[
+                  "✓ Zes soorten elektromagnetische straling noemen en ordenen op energie",
+                  "✓ Vier soorten ioniserende straling vergelijken op doordringend vermogen",
+                  "✓ Uitleggen wat ioniserend en doordringend vermogen is",
+                  "✓ Voorbeelden geven van natuurlijke en kunstmatige bronnen",
+                  "✓ Het verschil uitleggen tussen bestraling en besmetting"
+                ].map((d,i)=>(
+                  <div key={i} style={{fontSize:13,color:"#cbd5e1",padding:"4px 0",borderBottom:i<4?"1px solid rgba(255,255,255,.04)":"none"}}>{d}</div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ZELFCHECK */}
+          {screen==="question"&&showSelfCheck&&(
+            <div style={{animation:"fadeIn .3s ease"}}>
+              <SelfCheck onDone={()=>{setSelfCheckDone(true);setShowSelfCheck(false);setScreen("result");}}/>
+            </div>
+          )}
+
+          {/* VRAAG */}
+          {screen==="question"&&!showSelfCheck&&q&&(
+            <div style={{animation:"fadeIn .3s ease"}}>
+              {/* Voortgangsbalk */}
+              <div style={{marginBottom:14}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:6,fontSize:12,color:"#64748b"}}>
+                  <span>{lvl.icon} {lvl.title}</span><span>Vraag {qIdx+1} / {total}</span>
+                </div>
+                <div style={{height:5,background:"rgba(255,255,255,.06)",borderRadius:999}}>
+                  <div style={{height:"100%",borderRadius:999,background:`linear-gradient(90deg,${lvl.kleur},${LEVELS[(lvlIdx+1)%4].kleur})`,width:`${((qIdx+(done?1:0))/total)*100}%`,transition:"width .5s"}}/>
+                </div>
+              </div>
+
+              {/* Leerdoel kaartje */}
+              <div style={{background:`${lvl.kleur}15`,border:`1px solid ${lvl.kleur}30`,borderRadius:10,padding:"8px 12px",marginBottom:12,fontSize:12,color:"#94a3b8"}}>
+                <span style={{color:lvl.kleur,fontWeight:700}}>Leerdoel:</span> {
+                  lvlIdx===0?"Zes soorten EM-straling herkennen en ordenen op energie":
+                  lvlIdx===1?"Ioniserend en doordringend vermogen van α, β, röntgen en γ vergelijken":
+                  lvlIdx===2?"Bronnen van straling indelen en toepassingen benoemen":
+                  "Bestraling en besmetting analyseren aan de hand van praktijksituaties"
+                }
+              </div>
+
+              <QuestionCard q={q} sel={sel} done={done} onSelect={setSel} shake={shake} lvl={lvl}/>
+
+              {/* Antwoordopties */}
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+                {q.options.map((opt,i)=>{
+                  let bg="rgba(255,255,255,.04)",border="rgba(255,255,255,.1)",col="#e2e8f0";
+                  if(sel===i&&!done){bg="rgba(251,191,36,.12)";border="#fbbf24";}
+                  if(done){
+                    if(i===q.answer){bg="rgba(52,211,153,.12)";border="#34d399";col="#34d399";}
+                    else if(i===sel&&i!==q.answer){bg="rgba(239,68,68,.12)";border="#ef4444";col="#ef4444";}
+                  }
+                  return(
+                    <button key={i} className={!done?"ob":""} onClick={()=>{if(!done)setSel(i);}}
+                      style={{background:bg,border:`1.5px solid ${border}`,borderRadius:12,padding:"14px 16px",color:col,fontSize:13,fontWeight:500,cursor:done?"default":"pointer",textAlign:"left",display:"flex",alignItems:"flex-start",gap:10,width:"100%",minHeight:60}}>
+                      <span style={{minWidth:24,height:24,borderRadius:7,background:"rgba(255,255,255,.07)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,flexShrink:0,marginTop:1}}>
+                        {done?(i===q.answer?"✓":i===sel?"✗":String.fromCharCode(65+i)):String.fromCharCode(65+i)}
+                      </span>{opt}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Feedback */}
+              {done&&(
+                <div style={{background:correct?"rgba(52,211,153,.08)":"rgba(239,68,68,.08)",border:`1px solid ${correct?"#34d399":"#ef4444"}40`,borderRadius:12,padding:14,marginBottom:12,animation:"popIn .3s ease"}}>
+                  <div style={{fontSize:13,fontWeight:700,color:correct?"#34d399":"#f87171",marginBottom:4}}>
+                    {correct?"✅ Goed gedaan!":"❌ Niet helemaal..."}
+                    {correct&&streak>2&&<span style={{marginLeft:8,color:"#fbbf24"}}>🔥 {streak}x streak! +5</span>}
+                  </div>
+                  <div style={{fontSize:13,color:"#cbd5e1",lineHeight:1.65}}>💡 {q.explanation}</div>
+                </div>
+              )}
+
+              {!done?(
+                <button onClick={handleConfirm} disabled={sel===null}
+                  style={{width:"100%",padding:14,background:sel!==null?`linear-gradient(135deg,${lvl.kleur},${LEVELS[(lvlIdx+1)%4].kleur})`:"rgba(255,255,255,.05)",border:"none",borderRadius:12,color:sel!==null?"#0a0f1e":"#475569",fontWeight:700,fontSize:15,cursor:sel!==null?"pointer":"default"}}>
+                  Controleer →
+                </button>
+              ):(
+                <button onClick={handleNext}
+                  style={{width:"100%",padding:14,background:`linear-gradient(135deg,${lvl.kleur},${LEVELS[(lvlIdx+1)%4].kleur})`,border:"none",borderRadius:12,color:"#0a0f1e",fontWeight:700,fontSize:15,cursor:"pointer"}}>
+                  {qIdx+1<total?"Volgende vraag →":lvlIdx===1&&!selfCheckDone?"Zelfcheck →":"Resultaat bekijken 🏆"}
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* RESULTAAT */}
+          {screen==="result"&&(
+            <div style={{animation:"fadeIn .4s ease",textAlign:"center"}}>
+              <div style={{fontSize:68,marginBottom:10,lineHeight:1}}>{stars[lvlIdx]===3?"🏆":stars[lvlIdx]>=2?"🎉":stars[lvlIdx]===1?"💪":"😤"}</div>
+              <h2 style={{fontSize:24,fontWeight:800,margin:"0 0 6px"}}>{lvl.title} — Klaar!</h2>
+              <div style={{fontSize:14,color:"#94a3b8",marginBottom:18}}>{scores[lvlIdx]} van {total} goed beantwoord</div>
+              <div style={{display:"flex",justifyContent:"center",gap:8,marginBottom:18}}>
+                {[1,2,3].map(s=><span key={s} style={{fontSize:50,opacity:stars[lvlIdx]>=s?1:.2,animation:stars[lvlIdx]>=s?`popIn .4s ease ${s*.15}s both`:"none"}}>⭐</span>)}
+              </div>
+              <div style={{background:"rgba(255,255,255,.04)",borderRadius:12,padding:14,marginBottom:12,border:"1px solid rgba(255,255,255,.06)"}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                  <span style={{fontSize:13,color:"#94a3b8"}}>Score</span>
+                  <span style={{fontSize:13,fontWeight:700,color:lvl.kleur}}>{Math.round((scores[lvlIdx]/total)*100)}%</span>
+                </div>
+                <div style={{height:7,background:"rgba(255,255,255,.06)",borderRadius:999}}>
+                  <div style={{height:"100%",borderRadius:999,background:`linear-gradient(90deg,${lvl.kleur},${LEVELS[(lvlIdx+1)%4].kleur})`,width:`${(scores[lvlIdx]/total)*100}%`,transition:"width 1s"}}/>
+                </div>
+              </div>
+              <div style={{background:"rgba(251,191,36,.06)",borderRadius:12,padding:10,marginBottom:12,border:"1px solid rgba(251,191,36,.15)"}}>
+                <div style={{fontSize:13,color:"#fbbf24"}}>🔥 Langste streak: {maxStr}x &nbsp;|&nbsp; 🎯 Totaal: {pts} punten</div>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+                <button onClick={()=>startLevel(lvlIdx)} style={{padding:13,background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.12)",borderRadius:12,color:"#e2e8f0",fontWeight:600,cursor:"pointer",fontSize:14}}>🔄 Opnieuw</button>
+                <button onClick={goHome} style={{padding:13,background:`linear-gradient(135deg,${lvl.kleur},${LEVELS[(lvlIdx+1)%4].kleur})`,border:"none",borderRadius:12,color:"#0a0f1e",fontWeight:700,cursor:"pointer",fontSize:14}}>🏠 Levels</button>
+              </div>
+              {lvlIdx<LEVELS.length-1&&(
+                <button onClick={()=>startLevel(lvlIdx+1)} style={{width:"100%",padding:13,background:LEVELS[lvlIdx+1].bg,border:`1px solid ${LEVELS[lvlIdx+1].kleur}40`,borderRadius:12,color:"#f1f5f9",fontWeight:600,cursor:"pointer",fontSize:14}}>
+                  Volgend level: {LEVELS[lvlIdx+1].icon} {LEVELS[lvlIdx+1].title} →
+                </button>
+              )}
+            </div>
+          )}
+
+
+          {/* THEORIE */}
+          {screen==="theorie"&&(
+            <div style={{animation:"fadeIn .4s ease"}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:20}}>
+                <button onClick={goHome} style={{background:"rgba(255,255,255,.07)",border:"1px solid rgba(255,255,255,.12)",borderRadius:8,padding:"5px 10px",color:"#94a3b8",cursor:"pointer",fontSize:12}}>← Terug</button>
+                <h2 style={{fontSize:20,fontWeight:800,margin:0}}>📖 Theorie — §5.1 Straling en Bronnen</h2>
+              </div>
+
+              {/* Blok 1: EM spectrum */}
+              <div style={{background:"rgba(99,102,241,.08)",border:"1px solid rgba(99,102,241,.25)",borderRadius:14,padding:16,marginBottom:14}}>
+                <div style={{fontWeight:800,fontSize:15,color:"#818cf8",marginBottom:10}}>🌈 Elektromagnetische straling</div>
+                <p style={{fontSize:13,color:"#cbd5e1",lineHeight:1.7,marginBottom:10}}>
+                  Straling is overal om je heen: licht, warmte, wifi, röntgenstraling van de tandarts. 
+                  Al deze straling bestaat uit <strong style={{color:"#f1f5f9"}}>fotonen</strong> — pakketjes stralingsenergie.
+                  Hoe hoger de frequentie van de straling, hoe meer energie per foton.
+                </p>
+                <div style={{fontSize:12,color:"#64748b",marginBottom:8,fontWeight:700,letterSpacing:.5}}>HET ELEKTROMAGNETISCH SPECTRUM (laag → hoog in energie)</div>
+                <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                  {[
+                    {label:"Radiogolven", kleur:"#6366f1", ion:false, ex:"wifi, radio"},
+                    {label:"Microgolven", kleur:"#8b5cf6", ion:false, ex:"magnetron"},
+                    {label:"Infrarood",   kleur:"#f97316", ion:false, ex:"afstandsbediening"},
+                    {label:"Zichtbaar licht",kleur:"#22c55e",ion:false,ex:"zien, LED"},
+                    {label:"Ultraviolet", kleur:"#a855f7", ion:true,  ex:"UV-lamp, zon"},
+                    {label:"Röntgen",     kleur:"#06b6d4", ion:true,  ex:"ziekenhuis"},
+                    {label:"Gamma",       kleur:"#ef4444", ion:true,  ex:"radioactief"},
+                  ].map((t,i)=>(
+                    <div key={i} style={{background:t.kleur+"20",border:`1px solid ${t.kleur}50`,borderRadius:8,padding:"6px 10px",fontSize:11}}>
+                      <div style={{fontWeight:700,color:t.kleur}}>{t.label}</div>
+                      <div style={{color:"#94a3b8",marginTop:2}}>{t.ex}</div>
+                      <div style={{marginTop:3,color:t.ion?"#fca5a5":"#86efac",fontWeight:600,fontSize:10}}>{t.ion?"⚡ ioniserend":"✓ niet ioniserend"}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{marginTop:10,background:"rgba(239,68,68,.08)",borderRadius:8,padding:"8px 10px",fontSize:12,color:"#fca5a5",border:"1px solid rgba(239,68,68,.2)"}}>
+                  ⚠️ <strong>Ioniserend</strong> betekent: de straling heeft genoeg energie om elektronen uit atomen te slaan. UV, röntgen en gamma zijn ioniserend. Radiogolven, microgolven, infrarood en zichtbaar licht niet.
+                </div>
+              </div>
+
+              {/* Blok 2: Ioniserende straling soorten */}
+              <div style={{background:"rgba(249,115,22,.08)",border:"1px solid rgba(249,115,22,.25)",borderRadius:14,padding:16,marginBottom:14}}>
+                <div style={{fontWeight:800,fontSize:15,color:"#fb923c",marginBottom:10}}>⚡ Vier soorten ioniserende straling</div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                  {[
+                    {sym:"α",naam:"Alfa",kleur:"#f97316",wat:"2 protonen + 2 neutronen (He-kern)",dv:"Papier / buitenste huid",iv:"Heel hoog",gevaar:"Gevaarlijk bij inademing!"},
+                    {sym:"β",naam:"Beta",kleur:"#a855f7",wat:"Elektron (snelle deeltjes)",dv:"Enkele mm aluminium",iv:"Middel",gevaar:"Gevaarlijk bij contact met huid"},
+                    {sym:"☢",naam:"Röntgen",kleur:"#06b6d4",wat:"Elektromagnetische straling (foton)",dv:"Lood (dun), botten",iv:"Zwak",gevaar:"Schadelijk bij langdurige blootstelling"},
+                    {sym:"γ",naam:"Gamma",kleur:"#ef4444",wat:"Elektromagnetische straling (foton, hoge energie)",dv:"Dik beton / lood",iv:"Sterk",gevaar:"Meest gevaarlijk — dringt overal door"},
+                  ].map((t,i)=>(
+                    <div key={i} style={{background:t.kleur+"15",border:`1px solid ${t.kleur}40`,borderRadius:10,padding:10}}>
+                      <div style={{fontSize:22,fontWeight:900,color:t.kleur,marginBottom:4}}>{t.sym} — {t.naam}</div>
+                      <div style={{fontSize:11,color:"#94a3b8",marginBottom:4}}>{t.wat}</div>
+                      <div style={{fontSize:11,color:"#e2e8f0",marginBottom:2}}><span style={{color:"#64748b"}}>Stopt bij:</span> {t.dv}</div>
+                      <div style={{fontSize:11,color:"#e2e8f0",marginBottom:4}}><span style={{color:"#64748b"}}>Ioniserend vermogen:</span> {t.iv}</div>
+                      <div style={{fontSize:10,color:t.kleur,fontWeight:600}}>⚠️ {t.gevaar}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{marginTop:10,fontSize:12,color:"#94a3b8",fontStyle:"italic"}}>
+                  Ezelsbruggetje: α stopt het snelst, γ dringt het diepst door. Hoe meer doordringend, hoe minder ioniserend per cm.
+                </div>
+              </div>
+
+              {/* Blok 3: Bronnen */}
+              <div style={{background:"rgba(34,197,94,.08)",border:"1px solid rgba(34,197,94,.25)",borderRadius:14,padding:16,marginBottom:14}}>
+                <div style={{fontWeight:800,fontSize:15,color:"#4ade80",marginBottom:10}}>🌍 Bronnen van straling</div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+                  <div>
+                    <div style={{fontSize:12,fontWeight:700,color:"#4ade80",marginBottom:6}}>NATUURLIJKE BRONNEN</div>
+                    {["🌌 Kosmische straling (zon, sterren)","🪨 Aardse straling (graniet, uranium)","🧱 Bouwmaterialen (klei, gips)","🥗 Voedsel (sporen radioactief kalium)"].map((b,i)=>(
+                      <div key={i} style={{fontSize:12,color:"#cbd5e1",padding:"3px 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}>{b}</div>
+                    ))}
+                  </div>
+                  <div>
+                    <div style={{fontSize:12,fontWeight:700,color:"#60a5fa",marginBottom:6}}>KUNSTMATIGE BRONNEN</div>
+                    {["🏥 Röntgenapparaten (diagnostisch)","☢️ Bestralingsapparaten (therapeutisch)","🔬 Tracers (diagnostisch)","🏭 Kerncentrales","🔔 Rookmelders"].map((b,i)=>(
+                      <div key={i} style={{fontSize:12,color:"#cbd5e1",padding:"3px 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}>{b}</div>
+                    ))}
+                  </div>
+                </div>
+                <div style={{background:"rgba(96,165,250,.08)",borderRadius:8,padding:"8px 10px",fontSize:12,color:"#93c5fd",border:"1px solid rgba(96,165,250,.2)"}}>
+                  📡 <strong>Achtergrondstraling</strong> = alle bronnen samen. Altijd aanwezig, meetbaar met een gm-teller. Op grotere hoogte (vliegtuig) is de achtergrondstraling hoger omdat de atmosfeer minder kosmische straling absorbeert.
+                </div>
+              </div>
+
+              {/* Blok 4: Bestraling vs Besmetting */}
+              <div style={{background:"rgba(239,68,68,.08)",border:"1px solid rgba(239,68,68,.25)",borderRadius:14,padding:16,marginBottom:14}}>
+                <div style={{fontWeight:800,fontSize:15,color:"#f87171",marginBottom:10}}>☢️ Bestraling en besmetting</div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+                  <div style={{background:"rgba(239,68,68,.06)",borderRadius:10,padding:12,border:"1px solid rgba(239,68,68,.2)"}}>
+                    <div style={{fontWeight:700,color:"#fca5a5",marginBottom:6}}>BESTRALING</div>
+                    <div style={{fontSize:12,color:"#e2e8f0",lineHeight:1.6}}>De stralingsbron bevindt zich <strong>buiten</strong> het lichaam. Voorbeeld: röntgenfoto. Je kunt de bron wegleggen of weglopen.</div>
+                  </div>
+                  <div style={{background:"rgba(239,68,68,.12)",borderRadius:10,padding:12,border:"1px solid rgba(239,68,68,.35)"}}>
+                    <div style={{fontWeight:700,color:"#f87171",marginBottom:6}}>BESMETTING ⚠️</div>
+                    <div style={{fontSize:12,color:"#e2e8f0",lineHeight:1.6}}>De stralingsbron bevindt zich <strong>in of op</strong> het lichaam. Voorbeeld: ingeslikt radioactief deeltje. Doorgaans gevaarlijker — je draagt de bron bij je.</div>
+                  </div>
+                </div>
+                <div style={{fontSize:12,color:"#94a3b8",fontStyle:"italic"}}>
+                  Ioniserende straling kan DNA beschadigen, cellen laten muteren of doden → risico op kanker. Maar straling kan ook worden ingezet om kankercellen gericht te vernietigen (therapeutisch).
+                </div>
+              </div>
+
+              <button onClick={goHome} style={{width:"100%",padding:13,background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.12)",borderRadius:12,color:"#e2e8f0",fontWeight:600,cursor:"pointer",fontSize:14}}>
+                ← Terug naar levels
+              </button>
+            </div>
+          )}
+
+          {/* WINKEL */}
+          {screen==="shop"&&(
+            <div style={{animation:"fadeIn .35s ease"}}>
+              <div style={{textAlign:"center",marginBottom:18}}>
+                <div style={{display:"flex",justifyContent:"center",marginBottom:8}}><AvatarDisplay avatar={avatar} size={88}/></div>
+                <div style={{fontSize:17,fontWeight:800}}>Jouw Avatar</div>
+                <div style={{fontSize:12,color:"#94a3b8",marginTop:2}}>💰 {pts} punten beschikbaar</div>
+              </div>
+              <div style={{display:"flex",gap:6,marginBottom:12,overflowX:"auto",paddingBottom:4}}>
+                {Object.entries(CAT_LABELS).map(([cat,label])=>(
+                  <button key={cat} onClick={()=>setShopCat(cat)}
+                    style={{flexShrink:0,padding:"6px 12px",borderRadius:20,border:`1.5px solid ${shopCat===cat?"#60a5fa":"rgba(255,255,255,.1)"}`,background:shopCat===cat?"rgba(96,165,250,.15)":"rgba(255,255,255,.04)",color:shopCat===cat?"#60a5fa":"#94a3b8",fontWeight:600,fontSize:12,cursor:"pointer"}}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9,marginBottom:14}}>
+                {SHOP[shopCat].map(item=>{
+                  const isOwned=owned.includes(item.id),isEq=avatar[shopCat]===item.id,canAff=pts>=item.price,jB=buyFlash===item.id;
+                  return(
+                    <div key={item.id} onClick={()=>isOwned?equipItem(shopCat,item):buyItem(item)} className="ch"
+                      style={{background:isEq?"rgba(96,165,250,.15)":jB?"rgba(52,211,153,.15)":"rgba(255,255,255,.04)",
+                        border:`1.5px solid ${isEq?"#60a5fa":jB?"#34d399":isOwned?"rgba(255,255,255,.18)":"rgba(255,255,255,.08)"}`,
+                        borderRadius:12,padding:"12px 10px",cursor:(!isOwned&&!canAff)?"not-allowed":"pointer",
+                        opacity:(!isOwned&&!canAff)?.45:1,textAlign:"center",position:"relative"}}>
+                      {shopCat==="bg"
+                        ?<div style={{width:36,height:36,borderRadius:"50%",background:item.color,margin:"0 auto 6px",border:"2px solid rgba(255,255,255,.15)"}}/>
+                        :<div style={{fontSize:30,marginBottom:5,lineHeight:1}}>{item.emoji||"−"}</div>
+                      }
+                      <div style={{fontWeight:600,fontSize:12,color:"#f1f5f9"}}>{item.name}</div>
+                      <div style={{marginTop:4,fontSize:11}}>
+                        {isEq?<span style={{color:"#60a5fa",fontWeight:700}}>✓ Aan</span>
+                        :isOwned?<span style={{color:"#34d399"}}>In bezit</span>
+                        :jB?<span style={{color:"#34d399",fontWeight:700}}>✓ Gekocht!</span>
+                        :<span style={{color:canAff?"#fbbf24":"#ef4444",fontWeight:600}}>💰 {item.price} pts</span>}
+                      </div>
+                      {isEq&&<div style={{position:"absolute",top:7,right:7,width:9,height:9,borderRadius:"50%",background:"#60a5fa"}}/>}
+                    </div>
+                  );
+                })}
+              </div>
+              <button onClick={goHome} style={{width:"100%",padding:12,background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.12)",borderRadius:12,color:"#e2e8f0",fontWeight:600,cursor:"pointer",fontSize:13}}>
+                ← Terug naar levels
+              </button>
+            </div>
+          )}
+
+        </div>{/* end main */}
+      </div>{/* end layout */}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+</script>
+</body>
+</html>
