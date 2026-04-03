@@ -45,13 +45,13 @@ function makeOptions(correct,wrongs){
 
 // ── EM-Spectrum interactief SVG ─────────────────────────────────────────────
 const EM_TYPES=[
-  {id:"radio",   label:"Radiogolven",  kleur:"#6366f1",energie:"10⁻²⁷ – 10⁻²⁴ J",ioniserend:false, toepassing:"Radio, wifi, televisie",         symbool:"📡"},
-  {id:"micro",   label:"Microgolven",  kleur:"#8b5cf6",energie:"10⁻²⁴ – 10⁻²³ J",ioniserend:false, toepassing:"Magnetron, radarinstallaties",    symbool:"📶"},
-  {id:"ir",      label:"Infrarood",    kleur:"#f97316",energie:"10⁻²³ – 10⁻¹⁹ J",ioniserend:false, toepassing:"Afstandsbediening, warmtebeelden",symbool:"🌡️"},
-  {id:"licht",   label:"Zichtbaar licht",kleur:"#22c55e",energie:"10⁻¹⁹ J",       ioniserend:false, toepassing:"Zien, LED-verlichting",           symbool:"💡"},
-  {id:"uv",      label:"Ultraviolet",  kleur:"#a855f7",energie:"10⁻¹⁹ – 10⁻¹⁸ J",ioniserend:true,  toepassing:"Zonnebank, sterilisatie",         symbool:"☀️"},
-  {id:"rontgen", label:"Röntgenstraling",kleur:"#06b6d4",energie:"10⁻¹⁸ – 10⁻¹⁵ J",ioniserend:true, toepassing:"Medische foto's, bagagecontrole", symbool:"🏥"},
-  {id:"gamma",   label:"Gammastraling", kleur:"#ef4444",energie:"10⁻¹⁵ – 10⁻¹² J",ioniserend:true,  toepassing:"Kankertherapie, sterilisatie",    symbool:"☢️"},
+  {id:"radio",   label:"Radio",      svgLabel:["Radio","golven"], kleur:"#6366f1",energie:"10⁻²⁷ – 10⁻²⁴ J",ioniserend:false, toepassing:"Radio, wifi, televisie",         symbool:"📡"},
+  {id:"micro",   label:"Microgolven",svgLabel:["Micro","golven"], kleur:"#8b5cf6",energie:"10⁻²⁴ – 10⁻²³ J",ioniserend:false, toepassing:"Magnetron, radarinstallaties",    symbool:"📶"},
+  {id:"ir",      label:"Infrarood",  svgLabel:["Infra","rood"],   kleur:"#f97316",energie:"10⁻²³ – 10⁻¹⁹ J",ioniserend:false, toepassing:"Afstandsbediening, warmtebeelden",symbool:"🌡️"},
+  {id:"licht",   label:"Zichtbaar licht",svgLabel:["Zicht-","baar"], kleur:"#22c55e",energie:"10⁻¹⁹ J",       ioniserend:false, toepassing:"Zien, LED-verlichting",           symbool:"💡"},
+  {id:"uv",      label:"Ultraviolet",svgLabel:["Ultra","violet"], kleur:"#a855f7",energie:"10⁻¹⁹ – 10⁻¹⁸ J",ioniserend:true,  toepassing:"Zonnebank, sterilisatie",         symbool:"☀️"},
+  {id:"rontgen", label:"Röntgenstraling",svgLabel:["Röntgen","straling"], kleur:"#06b6d4",energie:"10⁻¹⁸ – 10⁻¹⁵ J",ioniserend:true, toepassing:"Medische foto's, bagagecontrole", symbool:"🏥"},
+  {id:"gamma",   label:"Gamma",      svgLabel:["Gamma","straling"],kleur:"#ef4444",energie:"10⁻¹⁵ – 10⁻¹² J",ioniserend:true,  toepassing:"Kankertherapie, sterilisatie",    symbool:"☢️"},
 ];
 
 function EMSpectrumSVG({onSelect,selected}){
@@ -81,10 +81,10 @@ function EMSpectrumSVG({onSelect,selected}){
               {t.ioniserend&&(
                 <text x={x+segW/2} y={22} fill="#fff" fontSize="8" textAnchor="middle" fontWeight="700">⚡</text>
               )}
-              <text x={x+segW/2} y={52} fill="#fff" fontSize="8" textAnchor="middle" fontWeight="600"
+              <text x={x+segW/2} y={44} fill="#fff" fontSize="7" textAnchor="middle" fontWeight="600"
                 style={{pointerEvents:"none"}}>
-                {t.label.split(" ").map((w,wi)=>(
-                  <tspan key={wi} x={x+segW/2} dy={wi===0?0:10}>{w}</tspan>
+                {t.svgLabel.map((w,wi)=>(
+                  <tspan key={wi} x={x+segW/2} dy={wi===0?0:9}>{w}</tspan>
                 ))}
               </text>
             </g>
@@ -475,10 +475,23 @@ function App(){
   const [shake,setShake]     = useState(false);
   const [showSelfCheck,setShowSelfCheck] = useState(false);
   const [selfCheckDone,setSelfCheckDone] = useState(false);
+  const [shuffledQuestions,setShuffledQuestions] = useState([]);
   const [avatar,setAvatar]   = useState(DEFAULT_AVATAR);
   const [owned,setOwned]     = useState(DEFAULT_OWNED);
   const [shopCat,setShopCat] = useState("body");
   const [buyFlash,setBuyFlash]= useState(null);
+
+  useEffect(()=>{
+    // Shuffle level 0 questions on first load
+    const raw0 = LEVELS[0].questions;
+    setShuffledQuestions(raw0.map(q => {
+      if(!q.options || q.answer === undefined) return q;
+      const correct = q.options[q.answer];
+      const s = [...q.options];
+      for(let i=s.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[s[i],s[j]]=[s[j],s[i]];}
+      return {...q,options:s,answer:s.indexOf(correct)};
+    }));
+  },[]);
 
   useEffect(()=>{
     try{
@@ -513,7 +526,7 @@ function App(){
   };
 
   const lvl=LEVELS[lvlIdx];
-  const qs=lvl?.questions;
+  const qs=shuffledQuestions.length>0?shuffledQuestions:lvl?.questions;
   const q=qs?.[qIdx];
   const total=qs?.length;
   const correct=done&&sel===q?.answer;
@@ -546,9 +559,23 @@ function App(){
     }
   };
 
+  const shuffleOptions = (qs) => qs.map(q => {
+    if(!q.options || q.answer === undefined) return q;
+    const correct = q.options[q.answer];
+    const shuffled = [...q.options];
+    for(let i = shuffled.length-1; i > 0; i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [shuffled[i],shuffled[j]]=[shuffled[j],shuffled[i]];
+    }
+    return {...q, options: shuffled, answer: shuffled.indexOf(correct)};
+  });
+
   const startLevel=i=>{
     setLvlIdx(i);setQIdx(0);setSel(null);setDone(false);setShowSelfCheck(false);
     setScores(s=>{const n=[...s];n[i]=0;return n;});
+    // Shuffle antwoordopties bij elke nieuwe levelstart
+    const raw = LEVELS[i].questions;
+    setShuffledQuestions(shuffleOptions(raw));
     setScreen("question");
   };
 
@@ -935,9 +962,11 @@ function App(){
                         border:`1.5px solid ${isEq?"#60a5fa":jB?"#34d399":isOwned?"rgba(255,255,255,.18)":"rgba(255,255,255,.08)"}`,
                         borderRadius:12,padding:"12px 10px",cursor:(!isOwned&&!canAff)?"not-allowed":"pointer",
                         opacity:(!isOwned&&!canAff)?.45:1,textAlign:"center",position:"relative"}}>
-                      {shopCat==="bg"
-                        ?<div style={{width:36,height:36,borderRadius:"50%",background:item.color,margin:"0 auto 6px",border:"2px solid rgba(255,255,255,.15)"}}/>
-                        :<div style={{fontSize:30,marginBottom:5,lineHeight:1}}>{item.emoji||"−"}</div>
+                      {shopCat==="appbg"
+                        ?<div style={{width:80,height:26,borderRadius:6,background:item.css||item.color||"#111",margin:"0 auto 6px",border:"1px solid rgba(255,255,255,.15)"}}/>
+                        :shopCat==="bg"
+                          ?<div style={{width:36,height:36,borderRadius:"50%",background:item.color,margin:"0 auto 6px",border:"2px solid rgba(255,255,255,.15)"}}/>
+                          :<div style={{fontSize:30,marginBottom:5,lineHeight:1}}>{item.emoji||" "}</div>
                       }
                       <div style={{fontWeight:600,fontSize:12,color:"#f1f5f9"}}>{item.name}</div>
                       <div style={{marginTop:4,fontSize:11}}>
