@@ -4,6 +4,7 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>§5.1 Straling en Bronnen · 4 HAVO</title>
+  <script src="straling-shop-data.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
@@ -20,61 +21,14 @@
 <script type="text/babel">
 const { useState, useEffect, useRef } = React;
 
-// ── Shop data (self-contained, geen extern bestand nodig) ──────────────────
-const SHOP = {
-  body:[
-    {id:"body_student",emoji:"🧑‍🎓",name:"Student",   price:0,  unlocked:true},
-    {id:"body_ninja",  emoji:"🥷",  name:"Ninja",     price:200},
-    {id:"body_zombie", emoji:"🧟",  name:"Zombie",    price:280},
-    {id:"body_robot",  emoji:"🤖",  name:"Robot",     price:380},
-    {id:"body_alien",  emoji:"👽",  name:"Alien",     price:480, starReq:15},
-    {id:"body_astro",  emoji:"👨‍🚀", name:"Astronaut", price:650, starReq:30},
-  ],
-  hat:[
-    {id:"hat_none",  emoji:"", name:"Geen hoed",    price:0,  unlocked:true},
-    {id:"hat_helm",  emoji:"🪖",name:"Legerhelm",   price:80},
-    {id:"hat_cap",   emoji:"🧢",name:"Pet",          price:120},
-    {id:"hat_top",   emoji:"🎩",name:"Hoge hoed",   price:240},
-    {id:"hat_crown", emoji:"👑",name:"Kroon",        price:500, starReq:30},
-  ],
-  badge:[
-    {id:"badge_none",  emoji:"", name:"Geen badge",price:0,  unlocked:true},
-    {id:"badge_atom",  emoji:"⚛️",name:"Atoom",     price:100},
-    {id:"badge_bolt",  emoji:"⚡",name:"Bliksem",   price:140},
-    {id:"badge_fire",  emoji:"🔥",name:"Vuur",      price:200},
-    {id:"badge_medal", emoji:"🏅",name:"Medaille",  price:280},
-    {id:"badge_rocket",emoji:"🚀",name:"Raket",     price:360, starReq:18},
-    {id:"badge_trophy",emoji:"🏆",name:"Trofee",    price:450, starReq:28},
-    {id:"badge_gem",   emoji:"💎",name:"Diamant",   price:600, starReq:40},
-  ],
-  bg:[
-    {id:"bg_dark",  color:"linear-gradient(160deg,#0f172a,#1e293b)",name:"Standaard",price:0,  unlocked:true},
-    {id:"bg_space", color:"linear-gradient(160deg,#0f172a,#1e3a8a)",name:"Ruimte",   price:120},
-    {id:"bg_green", color:"linear-gradient(160deg,#064e3b,#10b981)",name:"Natuur",   price:160},
-    {id:"bg_fire",  color:"linear-gradient(160deg,#7f1d1d,#ef4444)",name:"Vuur",     price:280},
-    {id:"bg_gold",  color:"linear-gradient(160deg,#78350f,#d97706)",name:"Goud",     price:400, starReq:20},
-  ],
-};
-const CAT_LABELS={body:"🧍 Karakter",hat:"🎩 Hoeden",badge:"🏅 Badges",bg:"🎨 Achtergrond"};
-const DEFAULT_AVATAR={body:"body_student",hat:"hat_none",badge:"badge_none",bg:"bg_dark"};
-const DEFAULT_OWNED=["body_student","hat_none","badge_none","bg_dark"];
-const SAVE_KEY = "straling_save";
-
-function resolveAvatar(av){
-  return {
-    body: SHOP.body.find(x=>x.id===av.body)||SHOP.body[0],
-    hat:  SHOP.hat.find(x=>x.id===av.hat)||SHOP.hat[0],
-    badge:SHOP.badge.find(x=>x.id===av.badge)||SHOP.badge[0],
-    bg:   SHOP.bg.find(x=>x.id===av.bg)||SHOP.bg[0],
-  };
-}
-function renderAvatarHTML(av,size){
-  const r=resolveAvatar(av);
-  const bFs=Math.round(size*.52),hFs=Math.round(size*.32),baFs=Math.round(size*.24),baSz=Math.round(size*.36);
-  const hat=r.hat.emoji?`<div style="position:absolute;top:${Math.round(size*.04)}px;left:0;right:0;display:flex;justify-content:center"><span style="font-size:${hFs}px">${r.hat.emoji}</span></div>`:'';
-  const badge=r.badge.emoji?`<div style="position:absolute;bottom:4px;right:4px;width:${baSz}px;height:${baSz}px;border-radius:50%;background:rgba(0,0,0,.45);border:1.5px solid rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:${baFs}px">${r.badge.emoji}</div>`:'';
-  return `<div style="width:${size}px;height:${size}px;border-radius:16px;background:${r.bg.color};display:flex;align-items:center;justify-content:center;position:relative;flex-shrink:0;border:2px solid rgba(255,255,255,.15);box-shadow:0 4px 20px rgba(0,0,0,.4);overflow:hidden"><span style="font-size:${bFs}px;line-height:1;position:relative;top:${Math.round(size*.06)}px">${r.body.emoji}</span>${hat}${badge}</div>`;
-}
+// ── Shop data — geladen via straling-shop-data.js ──────────────────────────
+const SHOP          = STRALING_SHOP;
+const CAT_LABELS    = STRALING_CAT_LABELS;
+const DEFAULT_AVATAR= STRALING_DEFAULT_AVATAR;
+const DEFAULT_OWNED = STRALING_DEFAULT_OWNED;
+const SAVE_KEY      = STRALING_SAVE_KEY;
+const resolveAvatar = stralingResolveAvatar;
+const renderAvatarHTML = stralingRenderAvatarHTML;
 function AvatarDisplay({avatar,size=64}){
   return <span dangerouslySetInnerHTML={{__html:renderAvatarHTML(avatar,size)}} style={{display:"contents"}}/>;
 }
@@ -534,7 +488,7 @@ function App(){
         if(d.avatar) setAvatar({...DEFAULT_AVATAR,...d.avatar});
         if(d.owned)  setOwned(d.owned);
         if(d.pts!==undefined) setPts(d.pts);
-        if(d.stars) setStars(d.stars);
+        if(d.stars_51) setStars(d.stars_51);
       }
     }catch(e){}
   },[]);
@@ -542,7 +496,7 @@ function App(){
   const persist=(av,ow,p,st)=>{
     try{
       const prev=JSON.parse(localStorage.getItem(SAVE_KEY))||{};
-      localStorage.setItem(SAVE_KEY,JSON.stringify({...prev,avatar:av,owned:ow,pts:p,...(st?{stars:st}:{})}));
+      localStorage.setItem(SAVE_KEY,JSON.stringify({...prev,avatar:av,owned:ow,pts:p,...(st?{stars_51:st}:{})}));
     }catch(e){}
   };
 
@@ -624,6 +578,7 @@ function App(){
           <div><div style={{fontWeight:800,fontSize:14}}>Straling en Bronnen</div><div style={{fontSize:10,color:"#64748b"}}>4 HAVO · §5.1 · Noordhoff</div></div>
         </div>
         <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:12}}>
+          <a href="index.html" style={{background:"rgba(255,255,255,.07)",border:"1px solid rgba(255,255,255,.12)",borderRadius:8,padding:"5px 10px",color:"#94a3b8",cursor:"pointer",fontSize:12,textDecoration:"none"}}>☢️ H5</a>
           {screen!=="home"&&<button onClick={goHome} style={{background:"rgba(255,255,255,.07)",border:"1px solid rgba(255,255,255,.12)",borderRadius:8,padding:"5px 10px",color:"#94a3b8",cursor:"pointer",fontSize:12}}>← Levels</button>}
           <div style={{textAlign:"center"}}>
             <div style={{fontSize:16,fontWeight:700,color:"#fbbf24"}}>{pts}</div>
