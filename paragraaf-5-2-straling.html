@@ -36,9 +36,8 @@ function AvatarDisplay({avatar,size=64}){
 // ── Helpers ────────────────────────────────────────────────────────────────
 const pick=arr=>arr[Math.floor(Math.random()*arr.length)];
 
-// ── Nuclide-notatie SVG ────────────────────────────────────────────────────
-// Toont een interactief atoomkernmodel: klik op een kern om A, Z, N te zien
-const NUCLIDES = [
+// ── Nuclide helpers ────────────────────────────────────────────────────────
+const ALL_NUCLIDES = [
   {sym:"H",  naam:"Waterstof",  Z:1,  A:1,  N:0,  kleur:"#6366f1", stabiel:true,  desc:"De eenvoudigste kern: alleen een proton, geen neutronen."},
   {sym:"H",  naam:"Deuterium",  Z:1,  A:2,  N:1,  kleur:"#8b5cf6", stabiel:true,  desc:"Zwaar waterstof: 1 proton + 1 neutron. Stabiel isotoop."},
   {sym:"H",  naam:"Tritium",    Z:1,  A:3,  N:2,  kleur:"#a855f7", stabiel:false, desc:"Radioactief waterstof-3. Vervalt via β-verval."},
@@ -47,73 +46,67 @@ const NUCLIDES = [
   {sym:"U",  naam:"Uranium-238",Z:92, A:238,N:146, kleur:"#f97316", stabiel:false, desc:"Het meest voorkomende uranium-isotoop. Vervalt via α-verval."},
 ];
 
-function NuclideSVG({onSelect, selected}){
-  const W=340, H=120, pad=14;
-  const segW=(W-2*pad)/NUCLIDES.length;
+// Enkelvoudige nuclide-weergave als SVG-blokje (correct: A boven Z links van symbool)
+function NuclideBlok({n, size=80, showLabels=true}){
+  const r=size*0.38, cx=size/2, cy=size/2;
+  const symSize=size*0.22, tagSize=size*0.13;
+  // A staat linksboven, Z linksonder van het symbool
+  const symX=cx+size*0.06, aX=cx-size*0.12, aY=cy-size*0.08, zX=cx-size*0.12, zY=cy+size*0.14;
+  return(
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{display:"block"}}>
+      <circle cx={cx} cy={cy} r={r} fill={n.kleur+"33"} stroke={n.kleur} strokeWidth={size*0.025}/>
+      {showLabels&&<>
+        <text x={aX} y={aY} fill="#fbbf24" fontSize={tagSize} textAnchor="middle" fontWeight="700" dominantBaseline="middle">{n.A}</text>
+        <text x={zX} y={zY} fill="#60a5fa" fontSize={tagSize} textAnchor="middle" dominantBaseline="middle">{n.Z}</text>
+      </>}
+      <text x={symX} y={cy+size*0.03} fill="#f1f5f9" fontSize={symSize} textAnchor="middle" fontWeight="800" dominantBaseline="middle">{n.sym}</text>
+    </svg>
+  );
+}
+
+// Meerdere nucliden naast elkaar, klikbaar
+function NuclideSVG({onSelect, selected, nuclides}){
+  const lijst = nuclides || ALL_NUCLIDES;
   return(
     <div style={{margin:"12px 0"}}>
-      <div style={{fontSize:10,color:"#64748b",textAlign:"center",marginBottom:4,letterSpacing:1}}>KLIK OP EEN ISOTOOP OM DE KERNSAMENSTELLING TE ZIEN</div>
-      <div style={{overflowX:"auto"}}>
-      <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{display:"block",minWidth:280}}>
-        {NUCLIDES.map((n,i)=>{
-          const x=pad+i*segW+segW/2;
+      <div style={{fontSize:10,color:"#64748b",textAlign:"center",marginBottom:6,letterSpacing:1}}>KLIK OP EEN ISOTOOP OM DE KERNSAMENSTELLING TE ZIEN</div>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",justifyContent:"center"}}>
+        {lijst.map((n,i)=>{
           const isSel=selected===i;
           return(
-            <g key={i} onClick={()=>onSelect(isSel?null:i)} style={{cursor:"pointer"}}>
-              {/* Kern cirkel */}
-              <circle cx={x} cy={52} r={22}
-                fill={n.kleur+(isSel?"55":"22")}
-                stroke={n.kleur}
-                strokeWidth={isSel?2.5:1.2}
-                opacity={selected!==null&&!isSel?0.4:1}
-                style={{transition:"all .2s"}}/>
-              {/* Notatie: A linksboven, Z linksonder */}
-              <text x={x-8} y={42} fill={n.kleur} fontSize="8" textAnchor="middle" fontWeight="700">{n.A}</text>
-              <text x={x-8} y={58} fill={n.kleur} fontSize="8" textAnchor="middle">{n.Z}</text>
-              <text x={x+2}  y={52} fill="#f1f5f9" fontSize="11" textAnchor="middle" fontWeight="800">{n.sym}</text>
-              {/* Stabiel / instabiel badge */}
-              <text x={x} y={84} fill={n.stabiel?"#34d399":"#ef4444"} fontSize="7" textAnchor="middle" fontWeight="600">
-                {n.stabiel?"stabiel":"radioactief"}
-              </text>
-              {/* naam */}
-              <text x={x} y={H-4} fill="#64748b" fontSize="7" textAnchor="middle">{n.naam}</text>
-            </g>
+            <div key={i} onClick={()=>onSelect(isSel?null:i)} style={{cursor:"pointer",opacity:selected!==null&&!isSel?0.4:1,transition:"opacity .2s",textAlign:"center"}}>
+              <div style={{border:`2px solid ${isSel?n.kleur:"transparent"}`,borderRadius:12,padding:3,background:isSel?n.kleur+"15":"transparent"}}>
+                <NuclideBlok n={n} size={72}/>
+              </div>
+              <div style={{fontSize:9,color:n.stabiel?"#34d399":"#ef4444",fontWeight:600,marginTop:2}}>{n.stabiel?"stabiel":"radioactief"}</div>
+              <div style={{fontSize:9,color:"#64748b"}}>{n.naam}</div>
+            </div>
           );
         })}
-      </svg>
       </div>
       {selected!==null&&(()=>{
-        const n=NUCLIDES[selected];
+        const n=lijst[selected];
         return(
-          <div style={{background:n.kleur+"22",border:`1.5px solid ${n.kleur}55`,borderRadius:12,padding:"12px 14px",marginTop:8,animation:"popIn .25s ease"}}>
-            <div style={{display:"flex",alignItems:"flex-start",gap:14,marginBottom:8}}>
-              {/* Grote nuclidenotatie */}
-              <div style={{flexShrink:0,background:"rgba(0,0,0,.3)",borderRadius:10,padding:"10px 12px",border:`1px solid ${n.kleur}40`,minWidth:64,textAlign:"center"}}>
-                <div style={{display:"flex",alignItems:"flex-start",justifyContent:"center",fontFamily:"'Courier New',monospace"}}>
-                  <div style={{display:"flex",flexDirection:"column",fontSize:11,color:n.kleur,lineHeight:1.2,marginRight:2}}>
-                    <span style={{fontWeight:700}}>{n.A}</span>
-                    <span>{n.Z}</span>
-                  </div>
-                  <span style={{fontSize:22,fontWeight:800,color:"#f1f5f9",lineHeight:1}}>{n.sym}</span>
-                </div>
-                <div style={{fontSize:9,color:"#64748b",marginTop:4}}>{n.naam}</div>
-              </div>
+          <div style={{background:n.kleur+"1a",border:`1.5px solid ${n.kleur}55`,borderRadius:12,padding:"14px 16px",marginTop:10,animation:"popIn .25s ease"}}>
+            <div style={{display:"flex",alignItems:"center",gap:16}}>
+              <NuclideBlok n={n} size={80}/>
               <div style={{flex:1}}>
+                <div style={{fontWeight:800,fontSize:15,color:"#f1f5f9",marginBottom:8}}>{n.naam}</div>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginBottom:8}}>
-                  <div style={{background:"rgba(251,191,36,.1)",borderRadius:8,padding:"6px 8px",textAlign:"center"}}>
-                    <div style={{fontSize:16,fontWeight:800,color:"#fbbf24"}}>{n.A}</div>
-                    <div style={{fontSize:9,color:"#64748b"}}>A = massagetal</div>
+                  <div style={{background:"rgba(251,191,36,.12)",borderRadius:8,padding:"8px 6px",textAlign:"center",border:"1px solid rgba(251,191,36,.25)"}}>
+                    <div style={{fontSize:20,fontWeight:900,color:"#fbbf24"}}>{n.A}</div>
+                    <div style={{fontSize:10,color:"#94a3b8",marginTop:2}}>massagetal</div>
                   </div>
-                  <div style={{background:"rgba(96,165,250,.1)",borderRadius:8,padding:"6px 8px",textAlign:"center"}}>
-                    <div style={{fontSize:16,fontWeight:800,color:"#60a5fa"}}>{n.Z}</div>
-                    <div style={{fontSize:9,color:"#64748b"}}>Z = protonen</div>
+                  <div style={{background:"rgba(96,165,250,.12)",borderRadius:8,padding:"8px 6px",textAlign:"center",border:"1px solid rgba(96,165,250,.25)"}}>
+                    <div style={{fontSize:20,fontWeight:900,color:"#60a5fa"}}>{n.Z}</div>
+                    <div style={{fontSize:10,color:"#94a3b8",marginTop:2}}>protonen</div>
                   </div>
-                  <div style={{background:"rgba(148,163,184,.1)",borderRadius:8,padding:"6px 8px",textAlign:"center"}}>
-                    <div style={{fontSize:16,fontWeight:800,color:"#94a3b8"}}>{n.N}</div>
-                    <div style={{fontSize:9,color:"#64748b"}}>N = neutronen</div>
+                  <div style={{background:"rgba(148,163,184,.12)",borderRadius:8,padding:"8px 6px",textAlign:"center",border:"1px solid rgba(148,163,184,.25)"}}>
+                    <div style={{fontSize:20,fontWeight:900,color:"#94a3b8"}}>{n.N}</div>
+                    <div style={{fontSize:10,color:"#94a3b8",marginTop:2}}>neutronen</div>
                   </div>
                 </div>
-                <div style={{fontSize:12,color:"#cbd5e1"}}>{n.desc}</div>
+                <div style={{fontSize:12,color:"#cbd5e1",lineHeight:1.5}}>{n.desc}</div>
               </div>
             </div>
           </div>
@@ -123,61 +116,87 @@ function NuclideSVG({onSelect, selected}){
   );
 }
 
-// ── Vervalvergelijking interactief SVG ────────────────────────────────────
+// ── Vervalvergelijking SVG ─────────────────────────────────────────────────
+// NuclideBox: A linksboven, Z linksonder, symbool rechts — zoals in het boek
+// Elke box is 52px breed, 60px hoog, gecentreerd op (cx, cy)
+function NuclideBoxSVG({n, cx, cy, kleur}){
+  const bw=52, bh=52;
+  const x0=cx-bw/2, y0=cy-bh/2;
+  // Symbool rechts-gecentreerd, A linksboven, Z linksonder
+  const symX=cx+4, symY=cy+2;
+  const tagX=cx-14;
+  return(
+    <g>
+      <rect x={x0} y={y0} width={bw} height={bh} rx={7}
+        fill={(kleur||n.kleur)+"22"} stroke={kleur||n.kleur} strokeWidth={1.5}/>
+      {/* A — massagetal — linksboven */}
+      <text x={tagX} y={cy-8} fill="#fbbf24" fontSize="9" textAnchor="middle" fontWeight="700" dominantBaseline="middle">{n.A}</text>
+      {/* Z — atoomnummer — linksonder */}
+      <text x={tagX} y={cy+10} fill="#60a5fa" fontSize="9" textAnchor="middle" dominantBaseline="middle">{n.Z}</text>
+      {/* Symbool */}
+      <text x={symX} y={symY} fill="#f1f5f9" fontSize="15" textAnchor="middle" fontWeight="800" dominantBaseline="middle">{n.sym}</text>
+    </g>
+  );
+}
+
 const DECAY_EXAMPLES = {
   alpha: {
-    moeder:{sym:"U", A:238, Z:92, naam:"Uranium-238", kleur:"#f97316"},
-    dochter:{sym:"Th", A:234, Z:90, naam:"Thorium-234", kleur:"#22c55e"},
-    deeltje:{sym:"He", A:4, Z:2, naam:"α-deeltje (heliumkern)", kleur:"#ef4444"},
+    moeder: {sym:"U",  A:238, Z:92,  naam:"Uranium-238",   kleur:"#f97316"},
+    dochter:{sym:"Th", A:234, Z:90,  naam:"Thorium-234",   kleur:"#22c55e"},
+    deeltje:{sym:"He", A:4,   Z:2,   naam:"heliumkern",    kleur:"#ef4444"},
     gamma:true,
     type:"α-verval",
-    regel:"A: 238 = 234 + 4  |  Z: 92 = 90 + 2",
-    uitleg:"Bij α-verval daalt Z met 2 en A met 4. Er komt een heliumkern (α-deeltje) vrij.",
+    regel:"massagetal:  238 = 234 + 4  ✓     protonen:  92 = 90 + 2  ✓",
+    uitleg:"Bij α-verval daalt het aantal protonen met 2 en het massagetal met 4.",
   },
   beta: {
-    moeder:{sym:"C", A:14, Z:6, naam:"Koolstof-14", kleur:"#a855f7"},
-    dochter:{sym:"N", A:14, Z:7, naam:"Stikstof-14", kleur:"#22c55e"},
-    deeltje:{sym:"e", A:0, Z:-1, naam:"β-deeltje (elektron)", kleur:"#06b6d4"},
+    moeder: {sym:"C",  A:14,  Z:6,   naam:"Koolstof-14",   kleur:"#a855f7"},
+    dochter:{sym:"N",  A:14,  Z:7,   naam:"Stikstof-14",   kleur:"#22c55e"},
+    deeltje:{sym:"e",  A:0,   Z:-1,  naam:"elektron",      kleur:"#06b6d4"},
     gamma:false,
     type:"β-verval",
-    regel:"A: 14 = 14 + 0  |  Z: 6 = 7 + (−1)",
-    uitleg:"Bij β-verval verandert een neutron in een proton + elektron. Z stijgt met 1, A blijft gelijk.",
+    regel:"massagetal:  14 = 14 + 0  ✓     protonen:  6 = 7 + (−1)  ✓",
+    uitleg:"Bij β-verval stijgt het aantal protonen met 1. Het massagetal blijft gelijk.",
   },
 };
 
 function DecaySVG({type}){
   if(!type) return(
-    <div style={{textAlign:"center",padding:20,color:"#475569",fontSize:12}}>Selecteer een vervaltype hieronder om de vergelijking te zien.</div>
+    <div style={{textAlign:"center",padding:"16px 0",color:"#475569",fontSize:12}}>Selecteer een vervaltype hieronder om de vergelijking te zien.</div>
   );
   const d=DECAY_EXAMPLES[type];
-  const W=320,H=80;
-  function NuclideBox({n,x,y}){
-    return(
-      <g>
-        <rect x={x-24} y={y-22} width={48} height={44} rx={6}
-          fill={n.kleur+"22"} stroke={n.kleur} strokeWidth={1.5}/>
-        <text x={x-10} y={y-10} fill={n.kleur} fontSize="7" textAnchor="middle" fontWeight="700">{n.A}</text>
-        <text x={x-10} y={y+2}  fill={n.kleur} fontSize="7" textAnchor="middle">{n.Z}</text>
-        <text x={x+4}  y={y-2}  fill="#f1f5f9" fontSize="13" textAnchor="middle" fontWeight="800">{n.sym}</text>
-        <text x={x}    y={y+18} fill="#64748b"  fontSize="7"  textAnchor="middle">{n.naam}</text>
-      </g>
-    );
-  }
+  // Layout: moeder → dochter + deeltje [+ γ]
+  // Posities (cx) voor elk element, voldoende ruimte voor tweeLetterige symbolen
+  const W=340, H=110, midY=48;
+  const positions=[55, 140, 230, 295]; // moeder, dochter, deeltje, gamma
   return(
-    <div style={{background:"rgba(0,0,0,.25)",borderRadius:12,padding:"10px 8px",border:"1px solid rgba(255,255,255,.07)",margin:"12px 0"}}>
-      <div style={{fontSize:10,color:"#64748b",textAlign:"center",marginBottom:6,letterSpacing:1}}>{d.type.toUpperCase()} — VERVALVERGELIJKING</div>
-      <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{display:"block"}}>
-        <NuclideBox n={d.moeder}  x={45}  y={38}/>
-        <text x={90} y={42} fill="#94a3b8" fontSize="14" textAnchor="middle" fontWeight="700">→</text>
-        <NuclideBox n={d.dochter} x={155} y={38}/>
-        <text x={200} y={42} fill="#94a3b8" fontSize="12" textAnchor="middle">+</text>
-        <NuclideBox n={d.deeltje} x={250} y={38}/>
+    <div style={{background:"rgba(0,0,0,.3)",borderRadius:12,padding:"12px 8px",border:"1px solid rgba(255,255,255,.08)",margin:"12px 0"}}>
+      <div style={{fontSize:10,color:"#64748b",textAlign:"center",marginBottom:8,letterSpacing:1,fontWeight:700}}>{d.type.toUpperCase()} — VERVALVERGELIJKING</div>
+      <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{display:"block",minWidth:280}}>
+        {/* Legenda kleuren */}
+        <text x={positions[0]} y={H-6} fill="#94a3b8" fontSize="7" textAnchor="middle">{d.moeder.naam}</text>
+        <text x={positions[1]} y={H-6} fill="#94a3b8" fontSize="7" textAnchor="middle">{d.dochter.naam}</text>
+        <text x={positions[2]} y={H-6} fill="#94a3b8" fontSize="7" textAnchor="middle">{d.deeltje.naam}</text>
+
+        <NuclideBoxSVG n={d.moeder}  cx={positions[0]} cy={midY}/>
+        {/* Pijl */}
+        <text x={98} y={midY+4} fill="#94a3b8" fontSize="16" textAnchor="middle" fontWeight="700">→</text>
+        <NuclideBoxSVG n={d.dochter} cx={positions[1]} cy={midY}/>
+        {/* Plus */}
+        <text x={186} y={midY+4} fill="#94a3b8" fontSize="14" textAnchor="middle">+</text>
+        <NuclideBoxSVG n={d.deeltje} cx={positions[2]} cy={midY}/>
         {d.gamma&&<>
-          <text x={290} y={42} fill="#94a3b8" fontSize="12" textAnchor="middle">+</text>
-          <text x={313} y={42} fill="#fbbf24" fontSize="11" textAnchor="middle" fontWeight="700">γ</text>
+          <text x={267} y={midY+4} fill="#94a3b8" fontSize="14" textAnchor="middle">+</text>
+          {/* Gamma als correct blokje: A=0, Z=0, γ */}
+          <rect x={positions[3]-20} y={midY-22} width={44} height={44} rx={7}
+            fill="rgba(251,191,36,.15)" stroke="#fbbf24" strokeWidth={1.5}/>
+          <text x={positions[3]-10} y={midY-8} fill="#fbbf24" fontSize="9" textAnchor="middle" fontWeight="700">0</text>
+          <text x={positions[3]-10} y={midY+10} fill="#60a5fa" fontSize="9" textAnchor="middle">0</text>
+          <text x={positions[3]+4}  y={midY+2}  fill="#fbbf24" fontSize="15" textAnchor="middle" fontWeight="800">γ</text>
+          <text x={positions[3]} y={H-6} fill="#94a3b8" fontSize="7" textAnchor="middle">gammafoton</text>
         </>}
       </svg>
-      <div style={{fontSize:11,color:"#fbbf24",textAlign:"center",marginBottom:4,fontFamily:"'Courier New',monospace"}}>{d.regel}</div>
+      <div style={{fontSize:11,color:"#fbbf24",textAlign:"center",marginTop:4,marginBottom:4,fontFamily:"'Courier New',monospace",lineHeight:1.6}}>{d.regel}</div>
       <div style={{fontSize:12,color:"#cbd5e1",textAlign:"center"}}>{d.uitleg}</div>
     </div>
   );
@@ -186,37 +205,49 @@ function DecaySVG({type}){
 // ── Vragen ─────────────────────────────────────────────────────────────────
 
 // LEVEL 1 — Atoomstructuur en isotopen (begripskennis)
+const C12 = ALL_NUCLIDES[3]; // koolstof-12
+const C14 = ALL_NUCLIDES[4];
 const L1_QUESTIONS=[
   {type:"nuclide_quiz",
-   question:"Wat geeft het atoomnummer Z aan bij een atoomkern?",
-   options:["Het aantal neutronen in de kern","Het totaal aantal kerndeeltjes","Het aantal protonen in de kern","De atoommassa in gram"],
-   answer:2,
-   explanation:"Z = atoomnummer = aantal protonen. Het aantal protonen bepaalt het element. Twee atomen met hetzelfde Z zijn altijd hetzelfde element, ook als ze een ander aantal neutronen hebben."},
-  {type:"nuclide_quiz",
-   question:"Koolstof-12 heeft de notatie ⁶¹²C. Hoeveel neutronen zitten er in de kern?",
-   options:["6","12","18","2"],
-   answer:0,
-   explanation:"N = A − Z = 12 − 6 = 6. Het massagetal A = 12 is het totaal aantal kerndeeltjes (protonen + neutronen). Er zijn dus 6 neutronen."},
-  {type:"nuclide_quiz",
-   question:"Wat zijn isotopen van een element?",
-   options:["Atomen met hetzelfde A maar verschillende Z","Atomen met hetzelfde Z maar verschillende A","Atomen die altijd radioactief zijn","Atomen die alleen in kerncentrales voorkomen"],
+   nuclides: ALL_NUCLIDES.slice(0,3), // alleen de 3 waterstofisotopen
+   question:"De drie isotopen van waterstof hebben allemaal hetzelfde aantal protonen. Hoeveel protonen heeft waterstof?",
+   options:["0","1","2","3"],
    answer:1,
-   explanation:"Isotopen hebben dezelfde Z (hetzelfde element), maar een ander massagetal A — dus een ander aantal neutronen. Chemisch zijn ze gelijk, in massa verschilt."},
+   explanation:"Alle waterstofisotopen (H-1, H-2 deuterium, H-3 tritium) hebben precies 1 proton. Dat is wat ze waterstof maakt. Ze verschillen alleen in het aantal neutronen."},
+  {type:"nuclide_single",
+   nuclide: C12,
+   question:"Koolstof-12 heeft 6 protonen. Hoeveel neutronen zitten er in de kern?",
+   options:["4","6","8","12"],
+   answer:1,
+   explanation:"Aantal neutronen = massagetal − protonen = 12 − 6 = 6. Het massagetal (linksboven) is het totaal aantal kerndeeltjes."},
   {type:"nuclide_quiz",
-   question:"Uranium-238 heeft Z = 92 en A = 238. Hoeveel neutronen heeft deze kern?",
+   nuclides: [ALL_NUCLIDES[3], ALL_NUCLIDES[4]], // C-12 en C-14
+   question:"Kijk naar koolstof-12 en koolstof-14. Wat is hetzelfde, en wat verschilt?",
+   options:[
+     "Hetzelfde massagetal, verschillend aantal protonen",
+     "Hetzelfde aantal protonen, verschillend massagetal",
+     "Hetzelfde aantal neutronen, verschillend massagetal",
+     "Alles is hetzelfde — het zijn dezelfde atomen"
+   ],
+   answer:1,
+   explanation:"Beide zijn koolstof: 6 protonen. Maar C-12 heeft 6 neutronen (massagetal 12) en C-14 heeft 8 neutronen (massagetal 14). Kernen met hetzelfde aantal protonen maar ander massagetal heten isotopen."},
+  {type:"nuclide_quiz",
+   nuclides: [ALL_NUCLIDES[5]], // uranium
+   question:"Uranium-238 heeft 92 protonen en een massagetal van 238. Hoeveel neutronen heeft deze kern?",
    options:["92","238","146","330"],
    answer:2,
-   explanation:"N = A − Z = 238 − 92 = 146. De kern van uranium-238 bestaat uit 92 protonen en 146 neutronen."},
+   explanation:"Neutronen = massagetal − protonen = 238 − 92 = 146. Je kunt dit ook opzoeken in Binas tabel 25A."},
   {type:"nuclide_quiz",
-   question:"Waterstof heeft drie isotopen: H-1, H-2 (deuterium) en H-3 (tritium). Wat hebben ze gemeenschappelijk?",
-   options:["Hetzelfde massagetal A","Hetzelfde aantal neutronen N","Hetzelfde atoomnummer Z = 1","Dezelfde atoommassa"],
+   nuclides: ALL_NUCLIDES.slice(0,3),
+   question:"Tritium (H-3) heeft massagetal 3 en 1 proton. Hoeveel neutronen heeft tritium?",
+   options:["0","1","2","3"],
    answer:2,
-   explanation:"Alle isotopen van waterstof hebben Z = 1 (één proton). Dat maakt ze waterstof. Ze verschillen in het aantal neutronen: H-1 heeft 0, H-2 heeft 1, H-3 heeft 2 neutronen."},
+   explanation:"Neutronen = massagetal − protonen = 3 − 1 = 2. Vergelijk: H-1 heeft 0 neutronen, H-2 heeft 1 neutron, H-3 heeft 2 neutronen. Zelfde aantal protonen, steeds één neutron meer."},
   {type:"text",
-   question:"Van welk atoomnummer af zijn er geen stabiele isotopen meer bekend?",
+   question:"Van welk atoomnummer af zijn er geen stabiele isotopen meer bekend? Gebruik Binas tabel 25A.",
    options:["Z > 50","Z > 83","Z > 92","Z > 100"],
    answer:1,
-   explanation:"Alle kernen met Z > 83 zijn instabiel en dus radioactief. Bismut (Z = 83) is het zwaarste element met stabiele isotopen. Alle zwaardere elementen vervallen uiteindelijk."},
+   explanation:"Alle kernen met meer dan 83 protonen zijn instabiel. Bismut (83 protonen) is het zwaarste element met stabiele isotopen. Dit kun je controleren in Binas tabel 25A: bij alle elementen daarna staat een halveringstijd, nooit 'stabiel'."},
 ];
 
 // LEVEL 2 — Radioactief verval: α en β (begrip + toepassen)
@@ -226,42 +257,42 @@ const L2_QUESTIONS=[
    question:"Bij α-verval zendt de kern een α-deeltje uit. Wat is een α-deeltje?",
    options:["Een snel elektron","Een foton met hoge energie","Een heliumkern: 2 protonen + 2 neutronen","Een los neutron"],
    answer:2,
-   explanation:"Een α-deeltje is identiek aan een heliumkern: ²₄He. Het bestaat uit 2 protonen en 2 neutronen. Zie ook Binas tabel 25A, kolom 7."},
+   explanation:"Een α-deeltje is identiek aan een heliumkern. Het bestaat uit 2 protonen en 2 neutronen. Notatie: ⁴₂He. Zie ook Binas tabel 25A, kolom 7."},
   {type:"decay_quiz",
    decayType:"alpha",
-   question:"Uranium-238 ondergaat α-verval. Met hoeveel neemt het atoomnummer Z af?",
+   question:"Uranium-238 ondergaat α-verval. Met hoeveel neemt het aantal protonen af?",
    options:["1","2","4","8"],
    answer:1,
-   explanation:"Bij α-verval verliest de kern een α-deeltje (Z = 2, A = 4). Het atoomnummer Z neemt daarom met 2 af: van U (Z=92) naar Th (Z=90)."},
+   explanation:"Bij α-verval verliest de kern een heliumkern (2 protonen + 2 neutronen). Het aantal protonen daalt dus met 2: uranium (92) → thorium (90). Het massagetal daalt met 4."},
   {type:"decay_quiz",
    decayType:"beta",
    question:"Bij β-verval komt er een elektron uit de kern. Hoe kan dat, als er geen elektronen in de kern zitten?",
    options:["Het elektron wordt aangetrokken door protonen","Een neutron verandert in een proton + elektron; het elektron schiet weg","Een proton splitst in twee elektronen","De kern trekt een elektron uit de elektronenwolk"],
    answer:1,
-   explanation:"Bij β-verval verandert een neutron in een proton en een elektron. Het proton blijft in de kern achter, het elektron wordt uitgestoten. Daardoor stijgt Z met 1 en blijft A gelijk."},
+   explanation:"Bij β-verval verandert een neutron in een proton en een elektron. Het proton blijft in de kern achter, het elektron wordt uitgestoten. Het aantal protonen stijgt dus met 1, het massagetal blijft gelijk."},
   {type:"decay_quiz",
    decayType:"beta",
-   question:"Koolstof-14 vervalt via β-verval naar stikstof. Wat is het atoomnummer van het dochterelement?",
+   question:"Koolstof-14 vervalt via β-verval naar stikstof. Koolstof heeft 6 protonen. Hoeveel protonen heeft het dochterelement?",
    options:["5","6","7","8"],
    answer:2,
-   explanation:"Bij β-verval stijgt Z met 1. ¹⁴₆C → ¹⁴₇N + ⁰₋₁e. Koolstof heeft Z=6, stikstof heeft Z=7. Het massagetal A (= 14) blijft onveranderd."},
+   explanation:"Bij β-verval stijgt het aantal protonen met 1: 6 + 1 = 7 protonen = stikstof. Het massagetal (14) blijft onveranderd. Controleer: ¹⁴C → ¹⁴N + ⁰₋₁e."},
   {type:"text",
-   question:"Polonium-211 (Z=84) vervalt via α-verval. Welk element ontstaat als dochterkern?",
-   options:["Bismut (Z=83)","Lood (Z=82)","Thallium (Z=81)","Radium (Z=88)"],
+   question:"Polonium-211 vervalt via α-verval. Polonium heeft 84 protonen. Welk element ontstaat? Gebruik Binas tabel 25A.",
+   options:["Bismut (83 protonen)","Lood (82 protonen)","Thallium (81 protonen)","Radium (88 protonen)"],
    answer:1,
-   explanation:"Bij α-verval: Z daalt met 2 en A daalt met 4. Z = 84 − 2 = 82 → Lood (Pb). A = 211 − 4 = 207. De dochterkern is dus ²⁰⁷₈₂Pb (lood-207)."},
+   explanation:"Bij α-verval daalt het aantal protonen met 2: 84 − 2 = 82 protonen = lood. Het massagetal daalt met 4: 211 − 4 = 207. De dochterkern is lood-207."},
   {type:"text",
-   question:"Wanneer Radium-226 (Z=88) α-verval ondergaat, welk massagetal A heeft de dochterkern?",
+   question:"Radium-226 ondergaat α-verval. Radium heeft 88 protonen. Welk massagetal heeft de dochterkern?",
    options:["226","224","222","230"],
    answer:2,
-   explanation:"Bij α-verval daalt A met 4: 226 − 4 = 222. En Z daalt met 2: 88 − 2 = 86 (= Radon). De dochterkern is ²²²₈₆Rn."},
+   explanation:"Bij α-verval daalt het massagetal met 4: 226 − 4 = 222. Het aantal protonen daalt met 2: 88 − 2 = 86 = radon. De dochterkern is radon-222."},
 ];
 
 // LEVEL 3 — Vervalvergelijkingen opstellen (toepassen / analyseren)
 const L3_QUESTIONS=[
   {type:"text",
-   question:"Bij welke vervalvergelijking klopt de behoudswet voor lading (Z) EN massa (A)?",
-   preQuestion:"Controleer bij elke optie: is de som van A links gelijk aan rechts? En de som van Z?",
+   question:"Bij welke vervalvergelijking kloppen zowel de massagetallen als de protonen links en rechts?",
+   preQuestion:"Controleer bij elke optie: is de som van de massagetallen links gelijk aan rechts? En de som van de protonen?",
    options:[
      "²³⁸₉₂U → ²³⁴₉₀Th + ⁴₂He",
      "²³⁸₉₂U → ²³²₉₀Th + ⁴₂He",
@@ -269,37 +300,37 @@ const L3_QUESTIONS=[
      "²³⁸₉₂U → ²³⁴₉₀Th + ²₁He"
    ],
    answer:0,
-   explanation:"Controleer A: 238 = 234 + 4 ✓ en Z: 92 = 90 + 2 ✓. Optie B klopt niet in A (238 ≠ 232+4=236). Optie C klopt niet in Z (92 ≠ 91+2=93). Optie D klopt niet in A of Z."},
+   explanation:"Massagetal: 238 = 234 + 4 ✓ en protonen: 92 = 90 + 2 ✓. Optie B: 234 + 4 = 236 ≠ 238 ✗. Optie C: protonen 91 + 2 = 93 ≠ 92 ✗. Optie D: massagetal 234 + 2 = 236 ≠ 238 ✗."},
   {type:"text",
    question:"In de vervalvergelijking ¹⁴₆C → ¹⁴₇N + ⁰?e, wat is de waarde op de plek van het vraagteken (het getal linksonder bij e)?",
    options:["0","1","−1","2"],
    answer:2,
-   explanation:"De lading moet behouden blijven: Z links = Z rechts. 6 = 7 + ? → ? = −1. Het β-deeltje heeft lading −1 en wordt genoteerd als ⁰₋₁e. A blijft: 14 = 14 + 0 ✓"},
+   explanation:"De protonen moeten kloppen: 6 = 7 + ? → ? = −1. Het β-deeltje heeft lading −1, notatie ⁰₋₁e. Massagetal klopt ook: 14 = 14 + 0 ✓."},
   {type:"text",
-   question:"Thorium-234 (Z=90) vervalt via β-verval. Wat is het dochterelement?",
-   options:["Radium (Z=88)","Protactinium (Z=91)","Uranium (Z=92)","Actinium (Z=89)"],
+   question:"Thorium-234 vervalt via β-verval. Thorium heeft 90 protonen. Welk element is het dochterelement? Gebruik Binas tabel 25A.",
+   options:["Radium","Protactinium","Uranium","Actinium"],
    answer:1,
-   explanation:"Bij β-verval: Z stijgt met 1 en A blijft gelijk. ²³⁴₉₀Th → ²³⁴₉₁Pa + ⁰₋₁e. Protactinium heeft Z=91. Je kunt dit ook controleren via Binas tabel 25A."},
+   explanation:"Bij β-verval stijgt het aantal protonen met 1: 90 + 1 = 91 protonen = protactinium. Het massagetal blijft 234. Controleer in Binas tabel 25A: protactinium heeft atoomnummer 91."},
   {type:"text",
-   question:"Een isotoop ondergaat α-verval en vormt ²¹⁰₈₂Pb als dochterkern. Wat was de moederkern?",
-   options:["²¹⁴₈₄Po","²¹²₈₄Po","²¹⁰₈₄Po","²¹⁴₈₂Pb"],
+   question:"Een isotoop ondergaat α-verval en vormt lood-210 als dochterkern. Lood heeft 82 protonen. Wat was de moederkern?",
+   options:["Polonium-214","Polonium-212","Polonium-210","Lood-214"],
    answer:0,
-   explanation:"Bij α-verval: de moeder heeft A = 210 + 4 = 214 en Z = 82 + 2 = 84 (= polonium). De moederkern is ²¹⁴₈₄Po. Je kunt dit verifiëren via Binas tabel 25A."},
+   explanation:"Bij α-verval: moeder heeft massagetal = 210 + 4 = 214 en protonen = 82 + 2 = 84 = polonium. De moederkern is polonium-214. Verifieer via Binas tabel 25A."},
   {type:"text",
    question:"Wat is het γ-foton in een vervalvergelijking?",
    options:[
-     "Een geladen deeltje dat Z verandert",
-     "Een zwaar deeltje dat A vermindert",
-     "Een elektromagnetisch foton met lading 0 en massagetal 0, verandert de samenstelling van de kern niet",
+     "Een geladen deeltje dat het aantal protonen verandert",
+     "Een zwaar deeltje dat het massagetal vermindert",
+     "Een elektromagnetisch foton met massagetal 0 en lading 0 — verandert de kernsamenstelling niet",
      "Een vervangen proton"
    ],
    answer:2,
-   explanation:"Het γ-foton heeft A=0 en Z=0. Het verandert de kernsamenstelling niet, maar draagt energie weg. Notatie: ⁰₀γ. Daarom hebben de Z- en A-sommen aan beide kanten nog steeds gelijk."},
+   explanation:"Het γ-foton heeft massagetal 0 en lading 0 (notatie ⁰₀γ). Het verandert de kernsamenstelling niet, maar draagt energie weg. Daardoor kloppen de sommen aan beide kanten nog steeds."},
   {type:"text",
-   question:"Radon-222 (Z=86) ondergaat α-verval. Welke dochterkern ontstaat?",
-   options:["²¹⁸₈₄Po","²²⁰₈₄Po","²¹⁸₈₆Rn","²²²₈₄Po"],
+   question:"Radon-222 ondergaat α-verval. Radon heeft 86 protonen. Welke dochterkern ontstaat? Gebruik Binas tabel 25A.",
+   options:["Polonium-218","Polonium-220","Radon-218","Polonium-222"],
    answer:0,
-   explanation:"A = 222 − 4 = 218. Z = 86 − 2 = 84 (= Polonium). De dochterkern is ²¹⁸₈₄Po. Controleer: 222 = 218 + 4 ✓ en 86 = 84 + 2 ✓"},
+   explanation:"Massagetal: 222 − 4 = 218. Protonen: 86 − 2 = 84 = polonium. De dochterkern is polonium-218. Controleer: 222 = 218 + 4 ✓ en 86 = 84 + 2 ✓."},
 ];
 
 // LEVEL 4 — Redeneren en analyseren (C-niveau)
@@ -434,8 +465,20 @@ function QuestionCard({q,sel,done,onSelect,shake,lvl}){
       )}
       <div style={{fontSize:14,fontWeight:600,lineHeight:1.6,marginBottom:12}}>{q.question}</div>
 
+      {/* Meerdere nucliden klikbaar */}
       {q.type==="nuclide_quiz"&&(
-        <NuclideSVG selected={nuclideSel} onSelect={setNuclideSel}/>
+        <NuclideSVG selected={nuclideSel} onSelect={setNuclideSel} nuclides={q.nuclides||ALL_NUCLIDES}/>
+      )}
+
+      {/* Enkelvoudig atoom tonen (niet klikbaar, puur visueel) */}
+      {q.type==="nuclide_single"&&(
+        <div style={{display:"flex",justifyContent:"center",margin:"10px 0 14px"}}>
+          <div style={{textAlign:"center"}}>
+            <NuclideBlok n={q.nuclide} size={96}/>
+            <div style={{fontSize:11,color:"#94a3b8",marginTop:6}}>{q.nuclide.naam}</div>
+            <div style={{fontSize:10,color:"#64748b",marginTop:2}}>massagetal linksboven · protonen linksonder</div>
+          </div>
+        </div>
       )}
 
       {q.type==="decay_quiz"&&(
@@ -818,109 +861,155 @@ function App(){
           {/* THEORIE */}
           {screen==="theorie"&&(
             <div style={{animation:"fadeIn .4s ease"}}>
-              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:20}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:24}}>
                 <button onClick={goHome} style={{background:"rgba(255,255,255,.07)",border:"1px solid rgba(255,255,255,.12)",borderRadius:8,padding:"5px 10px",color:"#94a3b8",cursor:"pointer",fontSize:12}}>← Terug</button>
                 <h2 style={{fontSize:20,fontWeight:800,margin:0}}>📖 Theorie — §5.2 Atomen en verval</h2>
               </div>
 
-              {/* Blok 1: Atoomstructuur */}
-              <div style={{background:"rgba(99,102,241,.08)",border:"1px solid rgba(99,102,241,.25)",borderRadius:14,padding:16,marginBottom:14}}>
-                <div style={{fontWeight:800,fontSize:15,color:"#818cf8",marginBottom:10}}>⚛️ Bouw van het atoom</div>
-                <p style={{fontSize:13,color:"#cbd5e1",lineHeight:1.7,marginBottom:12}}>
-                  Atomen bestaan uit een <strong style={{color:"#f1f5f9"}}>kern</strong> (protonen + neutronen) met daaromheen een <strong style={{color:"#f1f5f9"}}>elektronenwolk</strong>. Het aantal protonen Z bepaalt welk element het is.
+              {/* Blok 1: Bouw van het atoom */}
+              <div style={{background:"rgba(99,102,241,.08)",border:"1px solid rgba(99,102,241,.3)",borderRadius:16,padding:20,marginBottom:18}}>
+                <div style={{fontWeight:800,fontSize:17,color:"#818cf8",marginBottom:14}}>⚛️ Bouw van het atoom</div>
+                <p style={{fontSize:14,color:"#cbd5e1",lineHeight:1.8,marginBottom:16}}>
+                  Atomen bestaan uit een <strong style={{color:"#f1f5f9"}}>kern</strong> met protonen en neutronen, en een <strong style={{color:"#f1f5f9"}}>elektronenwolk</strong> eromheen. Het aantal protonen bepaalt welk element het is.
                 </p>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}}>
+
+                {/* A/Z/N uitleg kaarten */}
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:16}}>
                   {[
-                    {sym:"A",naam:"Massagetal",kleur:"#fbbf24",def:"Totaal aantal kerndeeltjes: A = N + Z"},
-                    {sym:"Z",naam:"Atoomnummer",kleur:"#60a5fa",def:"Aantal protonen — bepaalt het element"},
-                    {sym:"N",naam:"Neutronengetal",kleur:"#94a3b8",def:"Aantal neutronen: N = A − Z"},
+                    {sym:"A",naam:"Massagetal",kleur:"#fbbf24",def:"Totaal aantal kerndeeltjes",formule:"A = N + Z"},
+                    {sym:"Z",naam:"Protonen",kleur:"#60a5fa",def:"Aantal protonen in de kern",formule:"Bepaalt het element"},
+                    {sym:"N",naam:"Neutronen",kleur:"#94a3b8",def:"Aantal neutronen in de kern",formule:"N = A − Z"},
                   ].map((d,i)=>(
-                    <div key={i} style={{background:d.kleur+"15",border:`1px solid ${d.kleur}40`,borderRadius:10,padding:"10px 8px",textAlign:"center"}}>
-                      <div style={{fontSize:26,fontWeight:900,color:d.kleur,marginBottom:4,fontFamily:"serif"}}>{d.sym}</div>
-                      <div style={{fontSize:11,fontWeight:700,color:"#e2e8f0",marginBottom:4}}>{d.naam}</div>
-                      <div style={{fontSize:10,color:"#94a3b8",lineHeight:1.4}}>{d.def}</div>
+                    <div key={i} style={{background:d.kleur+"18",border:`1.5px solid ${d.kleur}50`,borderRadius:12,padding:"14px 10px",textAlign:"center"}}>
+                      <div style={{fontSize:32,fontWeight:900,color:d.kleur,marginBottom:6,fontFamily:"serif",lineHeight:1}}>{d.sym}</div>
+                      <div style={{fontSize:13,fontWeight:700,color:"#f1f5f9",marginBottom:6}}>{d.naam}</div>
+                      <div style={{fontSize:12,color:"#94a3b8",lineHeight:1.5,marginBottom:6}}>{d.def}</div>
+                      <div style={{fontSize:11,color:d.kleur,fontWeight:700,fontFamily:"monospace",background:"rgba(0,0,0,.2)",borderRadius:6,padding:"3px 6px"}}>{d.formule}</div>
                     </div>
                   ))}
                 </div>
-                <div style={{background:"rgba(96,165,250,.08)",borderRadius:10,padding:"10px 12px",fontSize:12,color:"#93c5fd",border:"1px solid rgba(96,165,250,.2)"}}>
-                  📌 <strong>Isotopen</strong> = kernen van hetzelfde element (zelfde Z) met een ander aantal neutronen (ander A). Voorbeeld: ¹²C en ¹⁴C zijn beide koolstof (Z=6), maar hebben 6 respectievelijk 8 neutronen.
+
+                {/* Notatie uitleg met isotopen van waterstof */}
+                <div style={{background:"rgba(0,0,0,.2)",borderRadius:12,padding:16,marginBottom:12,border:"1px solid rgba(255,255,255,.07)"}}>
+                  <div style={{fontSize:12,fontWeight:700,color:"#64748b",marginBottom:12,letterSpacing:.5}}>NOTATIE — DRIE ISOTOPEN VAN WATERSTOF</div>
+                  <div style={{display:"flex",gap:16,justifyContent:"center",flexWrap:"wrap",marginBottom:12}}>
+                    {ALL_NUCLIDES.slice(0,3).map((n,i)=>(
+                      <div key={i} style={{textAlign:"center"}}>
+                        <NuclideBlok n={n} size={80}/>
+                        <div style={{fontSize:12,fontWeight:700,color:n.kleur,marginTop:6}}>{n.naam}</div>
+                        <div style={{fontSize:11,color:"#94a3b8",marginTop:2}}>
+                          {n.A} kerndeeltjes · {n.Z} proton{n.N>0?` · ${n.N} neutron${n.N>1?"en":""}`:""}
+                        </div>
+                        <div style={{fontSize:10,color:n.stabiel?"#34d399":"#ef4444",marginTop:2,fontWeight:600}}>{n.stabiel?"stabiel":"radioactief"}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{fontSize:12,color:"#93c5fd",background:"rgba(96,165,250,.08)",borderRadius:8,padding:"8px 12px",border:"1px solid rgba(96,165,250,.2)"}}>
+                    📌 <strong>Isotopen</strong> = kernen van hetzelfde element (zelfde protonen) met een ander massagetal — dus ander aantal neutronen. Chemisch identiek, in massa verschillend.
+                  </div>
+                </div>
+
+                {/* Koolstof isotopen */}
+                <div style={{background:"rgba(0,0,0,.2)",borderRadius:12,padding:16,border:"1px solid rgba(255,255,255,.07)"}}>
+                  <div style={{fontSize:12,fontWeight:700,color:"#64748b",marginBottom:12,letterSpacing:.5}}>VOORBEELD — KOOLSTOFISOTOPEN</div>
+                  <div style={{display:"flex",gap:20,justifyContent:"center",flexWrap:"wrap",marginBottom:8}}>
+                    {[ALL_NUCLIDES[3], ALL_NUCLIDES[4]].map((n,i)=>(
+                      <div key={i} style={{textAlign:"center"}}>
+                        <NuclideBlok n={n} size={80}/>
+                        <div style={{fontSize:12,fontWeight:700,color:n.kleur,marginTop:6}}>{n.naam}</div>
+                        <div style={{fontSize:11,color:"#94a3b8",marginTop:2}}>{n.Z} protonen · {n.N} neutronen</div>
+                        <div style={{fontSize:10,color:n.stabiel?"#34d399":"#ef4444",marginTop:2,fontWeight:600}}>{n.stabiel?"stabiel":"radioactief"}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{fontSize:12,color:"#94a3b8",textAlign:"center"}}>Beide hebben 6 protonen → beide koolstof. Maar C-14 heeft 2 extra neutronen en is radioactief.</div>
                 </div>
               </div>
 
-              {/* Blok 2: Radioactiviteit */}
-              <div style={{background:"rgba(249,115,22,.08)",border:"1px solid rgba(249,115,22,.25)",borderRadius:14,padding:16,marginBottom:14}}>
-                <div style={{fontWeight:800,fontSize:15,color:"#fb923c",marginBottom:10}}>💥 Radioactief verval</div>
-                <p style={{fontSize:13,color:"#cbd5e1",lineHeight:1.7,marginBottom:10}}>
-                  Instabiele kernen zijn <strong style={{color:"#f1f5f9"}}>radioactief</strong>: ze veranderen spontaan in een ander element onder uitzending van straling. Dit heet <strong style={{color:"#f1f5f9"}}>radioactief verval</strong>. De oorspronkelijke kern = <em>moederkern</em>, de nieuwe kern = <em>dochterkern</em>.
+              {/* Blok 2: Radioactief verval */}
+              <div style={{background:"rgba(249,115,22,.08)",border:"1px solid rgba(249,115,22,.3)",borderRadius:16,padding:20,marginBottom:18}}>
+                <div style={{fontWeight:800,fontSize:17,color:"#fb923c",marginBottom:14}}>💥 Radioactief verval</div>
+                <p style={{fontSize:14,color:"#cbd5e1",lineHeight:1.8,marginBottom:16}}>
+                  Instabiele kernen zijn <strong style={{color:"#f1f5f9"}}>radioactief</strong>: ze veranderen spontaan in een ander element. De oorspronkelijke kern heet <em style={{color:"#fbbf24"}}>moederkern</em>, de nieuwe kern <em style={{color:"#34d399"}}>dochterkern</em>.
                 </p>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:16}}>
                   {[
-                    {type:"α-verval",kleur:"#f97316",verandering:"Z − 2, A − 4",deeltje:"⁴₂He (heliumkern)",voorbeeld:"²³⁸₉₂U → ²³⁴₉₀Th + ⁴₂He"},
-                    {type:"β-verval",kleur:"#a855f7",verandering:"Z + 1, A ongewijzigd",deeltje:"⁰₋₁e (elektron)",voorbeeld:"¹⁴₆C → ¹⁴₇N + ⁰₋₁e"},
+                    {type:"α-verval",kleur:"#f97316",uitgestoten:"heliumkern (2 protonen + 2 neutronen)",effect:"Protonen: −2  |  Massagetal: −4",symbool:"⁴₂He of α",voorbeeld:"uranium-238 → thorium-234 + α"},
+                    {type:"β-verval",kleur:"#a855f7",uitgestoten:"elektron (uit een neutron dat splitst)",effect:"Protonen: +1  |  Massagetal: onveranderd",symbool:"⁰₋₁e of β",voorbeeld:"koolstof-14 → stikstof-14 + β"},
                   ].map((d,i)=>(
-                    <div key={i} style={{background:d.kleur+"15",border:`1px solid ${d.kleur}40`,borderRadius:10,padding:12}}>
-                      <div style={{fontSize:14,fontWeight:800,color:d.kleur,marginBottom:6}}>{d.type}</div>
-                      <div style={{fontSize:11,color:"#94a3b8",marginBottom:3}}>Uitgestoten deeltje:</div>
-                      <div style={{fontSize:12,color:"#e2e8f0",marginBottom:6,fontFamily:"'Courier New',monospace"}}>{d.deeltje}</div>
-                      <div style={{fontSize:11,color:"#94a3b8",marginBottom:3}}>Effect op kern:</div>
-                      <div style={{fontSize:12,color:d.kleur,fontWeight:700,marginBottom:6}}>{d.verandering}</div>
-                      <div style={{fontSize:10,color:"#64748b",fontFamily:"'Courier New',monospace",borderTop:"1px solid rgba(255,255,255,.06)",paddingTop:6}}>{d.voorbeeld}</div>
+                    <div key={i} style={{background:d.kleur+"15",border:`1.5px solid ${d.kleur}45`,borderRadius:12,padding:14}}>
+                      <div style={{fontSize:15,fontWeight:800,color:d.kleur,marginBottom:10}}>{d.type}</div>
+                      <div style={{fontSize:12,color:"#94a3b8",marginBottom:4,fontWeight:600}}>Uitgestoten deeltje:</div>
+                      <div style={{fontSize:13,color:"#e2e8f0",marginBottom:10,lineHeight:1.5}}>{d.uitgestoten}</div>
+                      <div style={{fontSize:12,color:"#94a3b8",marginBottom:4,fontWeight:600}}>Effect op de kern:</div>
+                      <div style={{fontSize:13,color:d.kleur,fontWeight:700,marginBottom:10,fontFamily:"monospace"}}>{d.effect}</div>
+                      <div style={{fontSize:11,color:"#64748b",marginBottom:4}}>Notatie: <span style={{color:d.kleur,fontWeight:700,fontFamily:"monospace"}}>{d.symbool}</span></div>
+                      <div style={{fontSize:11,color:"#64748b",borderTop:"1px solid rgba(255,255,255,.06)",paddingTop:8,marginTop:4}}>{d.voorbeeld}</div>
                     </div>
                   ))}
                 </div>
-                <div style={{marginTop:10,background:"rgba(251,191,36,.08)",borderRadius:8,padding:"8px 10px",fontSize:12,color:"#fcd34d",border:"1px solid rgba(251,191,36,.2)"}}>
-                  ⚡ Bij beide vervaltypen kan ook een γ-foton vrijkomen (⁰₀γ). Omdat A=0 en Z=0, verandert het de kernsamenstelling niet.
+                <div style={{background:"rgba(251,191,36,.08)",borderRadius:10,padding:"10px 14px",fontSize:13,color:"#fcd34d",border:"1px solid rgba(251,191,36,.2)"}}>
+                  ⚡ Bij beide vervaltypen kan ook een <strong>γ-foton</strong> vrijkomen (massagetal 0, lading 0). Het verandert de kernsamenstelling niet.
                 </div>
               </div>
 
               {/* Blok 3: Vervalvergelijkingen */}
-              <div style={{background:"rgba(34,197,94,.08)",border:"1px solid rgba(34,197,94,.25)",borderRadius:14,padding:16,marginBottom:14}}>
-                <div style={{fontWeight:800,fontSize:15,color:"#4ade80",marginBottom:10}}>🧮 Vervalvergelijkingen opstellen</div>
-                <p style={{fontSize:13,color:"#cbd5e1",lineHeight:1.7,marginBottom:10}}>
-                  Een vervalvergelijking beschrijft de kernreactie. Er gelden twee behoudswetten:
+              <div style={{background:"rgba(34,197,94,.08)",border:"1px solid rgba(34,197,94,.3)",borderRadius:16,padding:20,marginBottom:18}}>
+                <div style={{fontWeight:800,fontSize:17,color:"#4ade80",marginBottom:14}}>🧮 Vervalvergelijkingen opstellen</div>
+                <p style={{fontSize:14,color:"#cbd5e1",lineHeight:1.8,marginBottom:14}}>
+                  Twee behoudswetten gelden altijd in een vervalvergelijking:
                 </p>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
-                  <div style={{background:"rgba(251,191,36,.08)",borderRadius:8,padding:"10px 12px",border:"1px solid rgba(251,191,36,.2)"}}>
-                    <div style={{fontWeight:700,color:"#fbbf24",marginBottom:4,fontSize:12}}>🔢 Behoud van massa (A)</div>
-                    <div style={{fontSize:12,color:"#e2e8f0"}}>Som van A links = som van A rechts</div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
+                  <div style={{background:"rgba(251,191,36,.1)",borderRadius:10,padding:"14px",border:"1px solid rgba(251,191,36,.3)"}}>
+                    <div style={{fontWeight:700,color:"#fbbf24",marginBottom:6,fontSize:14}}>🔢 Massagetallen</div>
+                    <div style={{fontSize:13,color:"#e2e8f0",lineHeight:1.6}}>Som van de massagetallen links = som rechts</div>
                   </div>
-                  <div style={{background:"rgba(96,165,250,.08)",borderRadius:8,padding:"10px 12px",border:"1px solid rgba(96,165,250,.2)"}}>
-                    <div style={{fontWeight:700,color:"#60a5fa",marginBottom:4,fontSize:12}}>⚡ Behoud van lading (Z)</div>
-                    <div style={{fontSize:12,color:"#e2e8f0"}}>Som van Z links = som van Z rechts</div>
+                  <div style={{background:"rgba(96,165,250,.1)",borderRadius:10,padding:"14px",border:"1px solid rgba(96,165,250,.3)"}}>
+                    <div style={{fontWeight:700,color:"#60a5fa",marginBottom:6,fontSize:14}}>⚡ Protonen</div>
+                    <div style={{fontSize:13,color:"#e2e8f0",lineHeight:1.6}}>Som van de protonen links = som rechts</div>
                   </div>
                 </div>
-                <div style={{background:"rgba(0,0,0,.25)",borderRadius:10,padding:12,fontFamily:"'Courier New',monospace",fontSize:13,color:"#e2e8f0",marginBottom:8}}>
-                  <div style={{color:"#94a3b8",fontSize:10,marginBottom:6}}>VOORBEELD — α-verval:</div>
-                  <div>²³⁸₉₂U → ²³⁴₉₀Th + ⁴₂He + ⁰₀γ</div>
-                  <div style={{color:"#64748b",fontSize:11,marginTop:4}}>A: 238 = 234 + 4 ✓  |  Z: 92 = 90 + 2 ✓</div>
+
+                {/* α-verval voorbeeld met SVG */}
+                <div style={{marginBottom:14}}>
+                  <div style={{fontSize:12,fontWeight:700,color:"#4ade80",marginBottom:8,letterSpacing:.5}}>VOORBEELD — α-VERVAL</div>
+                  <DecaySVG type="alpha"/>
                 </div>
-                <div style={{background:"rgba(0,0,0,.25)",borderRadius:10,padding:12,fontFamily:"'Courier New',monospace",fontSize:13,color:"#e2e8f0"}}>
-                  <div style={{color:"#94a3b8",fontSize:10,marginBottom:6}}>VOORBEELD — β-verval:</div>
-                  <div>¹⁴₆C → ¹⁴₇N + ⁰₋₁e</div>
-                  <div style={{color:"#64748b",fontSize:11,marginTop:4}}>A: 14 = 14 + 0 ✓  |  Z: 6 = 7 + (−1) ✓</div>
+
+                {/* β-verval voorbeeld */}
+                <div>
+                  <div style={{fontSize:12,fontWeight:700,color:"#4ade80",marginBottom:8,letterSpacing:.5}}>VOORBEELD — β-VERVAL</div>
+                  <DecaySVG type="beta"/>
                 </div>
               </div>
 
               {/* Blok 4: Notatieafspraken */}
-              <div style={{background:"rgba(168,85,247,.08)",border:"1px solid rgba(168,85,247,.25)",borderRadius:14,padding:16,marginBottom:14}}>
-                <div style={{fontWeight:800,fontSize:15,color:"#c084fc",marginBottom:10}}>📝 Notatieafspraken kerndeeltjes</div>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+              <div style={{background:"rgba(168,85,247,.08)",border:"1px solid rgba(168,85,247,.3)",borderRadius:16,padding:20,marginBottom:18}}>
+                <div style={{fontWeight:800,fontSize:17,color:"#c084fc",marginBottom:14}}>📝 Notatieafspraken kerndeeltjes</div>
+                <p style={{fontSize:13,color:"#94a3b8",marginBottom:14,lineHeight:1.6}}>In vervalvergelijkingen schrijf je alle deeltjes op dezelfde manier: massagetal linksboven, protonen linksonder, symbool rechts.</p>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
                   {[
-                    {notatie:"¹₁H of ¹₁p",naam:"Waterstofkern / proton",kleur:"#60a5fa"},
-                    {notatie:"⁴₂He of α",naam:"Heliumkern / α-deeltje",kleur:"#f97316"},
-                    {notatie:"⁰₋₁e of β",naam:"Elektron / β-deeltje",kleur:"#a855f7"},
-                    {notatie:"⁰₀γ of γ",naam:"Gammafoton",kleur:"#fbbf24"},
-                    {notatie:"¹₀n",naam:"Neutron",kleur:"#94a3b8"},
-                  ].map((d,i)=>(
-                    <div key={i} style={{background:d.kleur+"12",borderRadius:8,padding:"8px 10px",border:`1px solid ${d.kleur}30`,display:"flex",alignItems:"center",gap:10}}>
-                      <span style={{fontFamily:"'Courier New',monospace",fontSize:14,color:d.kleur,fontWeight:700,flexShrink:0}}>{d.notatie}</span>
-                      <span style={{fontSize:11,color:"#cbd5e1"}}>{d.naam}</span>
-                    </div>
-                  ))}
+                    {A:1,  Z:1,  sym:"H",  omschr:"Waterstofkern / proton",   kleur:"#60a5fa", alt:"of ¹₁p"},
+                    {A:4,  Z:2,  sym:"He", omschr:"Heliumkern / α-deeltje",   kleur:"#f97316", alt:"of α"},
+                    {A:0,  Z:-1, sym:"e",  omschr:"Elektron / β-deeltje",     kleur:"#a855f7", alt:"of β"},
+                    {A:0,  Z:0,  sym:"γ",  omschr:"Gammafoton",               kleur:"#fbbf24", alt:""},
+                    {A:1,  Z:0,  sym:"n",  omschr:"Neutron",                  kleur:"#94a3b8", alt:""},
+                  ].map((d,i)=>{
+                    const n={sym:d.sym,A:d.A,Z:d.Z,N:0,kleur:d.kleur,naam:"",stabiel:true,desc:""};
+                    return(
+                      <div key={i} style={{background:d.kleur+"12",borderRadius:10,padding:"12px 14px",border:`1px solid ${d.kleur}30`,display:"flex",alignItems:"center",gap:12}}>
+                        <NuclideBlok n={n} size={52} showLabels={true}/>
+                        <div>
+                          <div style={{fontSize:13,color:"#f1f5f9",fontWeight:600,marginBottom:2}}>{d.omschr}</div>
+                          {d.alt&&<div style={{fontSize:11,color:d.kleur,fontFamily:"monospace"}}>{d.alt}</div>}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
-              <button onClick={goHome} style={{width:"100%",padding:13,background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.12)",borderRadius:12,color:"#e2e8f0",fontWeight:600,cursor:"pointer",fontSize:14}}>
+              <button onClick={goHome} style={{width:"100%",padding:14,background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.12)",borderRadius:12,color:"#e2e8f0",fontWeight:600,cursor:"pointer",fontSize:14}}>
                 ← Terug naar levels
               </button>
             </div>
