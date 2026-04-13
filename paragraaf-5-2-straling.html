@@ -327,11 +327,12 @@ const L3_QUESTIONS=[
    ],
    answer:0,
    explanation:"Massagetal: 238 = 234 + 4 ✓ en protonen: 92 = 90 + 2 ✓. Optie B: 234 + 4 = 236 ≠ 238 ✗. Optie C: protonen 91 + 2 = 93 ≠ 92 ✗. Optie D: massagetal 234 + 2 = 236 ≠ 238 ✗."},
-  {type:"text",
-   question:"In de vervalvergelijking ¹⁴₆C → ¹⁴₇N + ⁰?e, wat is de waarde op de plek van het vraagteken (het getal linksonder bij e)?",
+  {type:"vergelijking_invul",
+   question:"Wat is de waarde op de plek van het vraagteken (het getal linksonder bij e)?",
+   vergelijking:{moeder:{A:14,Z:6,sym:"C"}, dochter:{A:14,Z:7,sym:"N"}, deeltje:{A:0,Z:"?",sym:"e"}},
    options:["0","1","−1","2"],
    answer:2,
-   explanation:"De protonen moeten kloppen: 6 = 7 + ? → ? = −1. Het β-deeltje heeft lading −1, notatie ⁰₋₁e. Massagetal klopt ook: 14 = 14 + 0 ✓."},
+   explanation:"De protonen moeten kloppen: 6 = 7 + ? → ? = −1. Het β-deeltje heeft lading −1. Massagetal klopt ook: 14 = 14 + 0 ✓."},
   {type:"text",
    question:"Thorium-234 vervalt via β-verval. Thorium heeft 90 protonen. Welk element is het dochterelement? Gebruik Binas tabel 25A.",
    options:["Radium","Protactinium","Uranium","Actinium"],
@@ -503,6 +504,19 @@ function QuestionCard({q,sel,done,onSelect,shake,lvl}){
             <NuclideBlok n={q.nuclide} size={96}/>
             <div style={{fontSize:11,color:"#94a3b8",marginTop:6}}>{q.nuclide.naam}</div>
             <div style={{fontSize:10,color:"#64748b",marginTop:2}}>massagetal linksboven · protonen linksonder</div>
+          </div>
+        </div>
+      )}
+
+      {/* Vervalvergelijking met vraagteken tonen */}
+      {q.type==="vergelijking_invul"&&(
+        <div style={{display:"flex",justifyContent:"center",margin:"10px 0 16px"}}>
+          <div style={{background:"rgba(255,255,255,.05)",border:"1px solid rgba(255,255,255,.12)",borderRadius:12,padding:"14px 20px",display:"inline-flex",alignItems:"center",gap:4}}>
+            <NuclideBlokInline {...q.vergelijking.moeder} kleur="#f1f5f9"/>
+            <span style={{color:"#64748b",fontSize:16,margin:"0 4px"}}>→</span>
+            <NuclideBlokInline {...q.vergelijking.dochter} kleur="#f1f5f9"/>
+            <span style={{color:"#64748b",fontSize:16,margin:"0 4px"}}>+</span>
+            <NuclideBlokInline {...q.vergelijking.deeltje} kleur="#f97316"/>
           </div>
         </div>
       )}
