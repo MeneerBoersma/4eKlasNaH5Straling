@@ -64,6 +64,32 @@ function NuclideBlok({n, size=80, showLabels=true}){
   );
 }
 
+// Inline SVG-bloknotatie voor één kern: A linksboven, Z linksonder, symbool rechts
+function NuclideBlokInline({A, Z, sym, kleur="#94a3b8"}){
+  const w=52, h=36, symX=34, symY=18, aX=14, aY=10, zY=27;
+  return(
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{display:"inline-block",verticalAlign:"middle",flexShrink:0}}>
+      <text x={aX} y={aY} fill="#fbbf24" fontSize="11" textAnchor="middle" fontWeight="700" dominantBaseline="middle">{A}</text>
+      <text x={aX} y={zY} fill="#60a5fa" fontSize="11" textAnchor="middle" dominantBaseline="middle">{Z}</text>
+      <text x={symX} y={symY} fill={kleur} fontSize="15" textAnchor="middle" fontWeight="800" dominantBaseline="middle">{sym}</text>
+    </svg>
+  );
+}
+
+// Vervalvergelijking als SVG-bloknotatie: moeder → dochter + deeltje
+// kern = {A, Z, sym} | pijl | {A, Z, sym} + {A, Z, sym}
+function VervalVergelijking({moeder, dochter, deeltje}){
+  return(
+    <span style={{display:"inline-flex",alignItems:"center",gap:2,flexWrap:"nowrap"}}>
+      <NuclideBlokInline {...moeder} kleur="#f1f5f9"/>
+      <span style={{color:"#64748b",fontSize:14,margin:"0 2px"}}>→</span>
+      <NuclideBlokInline {...dochter} kleur="#f1f5f9"/>
+      <span style={{color:"#64748b",fontSize:14,margin:"0 2px"}}>+</span>
+      <NuclideBlokInline {...deeltje} kleur="#f97316"/>
+    </span>
+  );
+}
+
 // Meerdere nucliden naast elkaar, klikbaar
 function NuclideSVG({onSelect, selected, nuclides}){
   const lijst = nuclides || ALL_NUCLIDES;
@@ -290,14 +316,14 @@ const L2_QUESTIONS=[
 
 // LEVEL 3 — Vervalvergelijkingen opstellen (toepassen / analyseren)
 const L3_QUESTIONS=[
-  {type:"text",
+  {type:"vergelijking",
    question:"Bij welke vervalvergelijking kloppen zowel de massagetallen als de protonen links en rechts?",
    preQuestion:"Controleer bij elke optie: is de som van de massagetallen links gelijk aan rechts? En de som van de protonen?",
    options:[
-     "²³⁸₉₂U → ²³⁴₉₀Th + ⁴₂He",
-     "²³⁸₉₂U → ²³²₉₀Th + ⁴₂He",
-     "²³⁸₉₂U → ²³⁴₉₁Th + ⁴₂He",
-     "²³⁸₉₂U → ²³⁴₉₀Th + ²₁He"
+     {moeder:{A:238,Z:92,sym:"U"}, dochter:{A:234,Z:90,sym:"Th"}, deeltje:{A:4,Z:2,sym:"He"}},
+     {moeder:{A:238,Z:92,sym:"U"}, dochter:{A:232,Z:90,sym:"Th"}, deeltje:{A:4,Z:2,sym:"He"}},
+     {moeder:{A:238,Z:92,sym:"U"}, dochter:{A:234,Z:91,sym:"Th"}, deeltje:{A:4,Z:2,sym:"He"}},
+     {moeder:{A:238,Z:92,sym:"U"}, dochter:{A:234,Z:90,sym:"Th"}, deeltje:{A:2,Z:1,sym:"He"}},
    ],
    answer:0,
    explanation:"Massagetal: 238 = 234 + 4 ✓ en protonen: 92 = 90 + 2 ✓. Optie B: 234 + 4 = 236 ≠ 238 ✗. Optie C: protonen 91 + 2 = 93 ≠ 92 ✗. Optie D: massagetal 234 + 2 = 236 ≠ 238 ✗."},
@@ -528,7 +554,8 @@ function App(){
       const correct=q.options[q.answer];
       const s=[...q.options];
       for(let i=s.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[s[i],s[j]]=[s[j],s[i]];}
-      return {...q,options:s,answer:s.indexOf(correct)};
+      const newAnswer=s.findIndex(o=>JSON.stringify(o)===JSON.stringify(correct));
+      return {...q,options:s,answer:newAnswer!==-1?newAnswer:s.indexOf(correct)};
     }));
   },[]);
 
@@ -605,7 +632,9 @@ function App(){
       const j=Math.floor(Math.random()*(i+1));
       [shuffled[i],shuffled[j]]=[shuffled[j],shuffled[i]];
     }
-    return {...q,options:shuffled,answer:shuffled.indexOf(correct)};
+    // Voor object-opties: vergelijk via JSON
+    const newAnswer=shuffled.findIndex(o=>JSON.stringify(o)===JSON.stringify(correct));
+    return {...q,options:shuffled,answer:newAnswer!==-1?newAnswer:shuffled.indexOf(correct)};
   });
 
   const startLevel=i=>{
@@ -792,10 +821,13 @@ function App(){
                   }
                   return(
                     <button key={i} className={!done?"ob":""} onClick={()=>{if(!done)setSel(i);}}
-                      style={{background:bg,border:`1.5px solid ${border}`,borderRadius:12,padding:"14px 16px",color:col,fontSize:13,fontWeight:500,cursor:done?"default":"pointer",textAlign:"left",display:"flex",alignItems:"flex-start",gap:10,width:"100%",minHeight:60}}>
+                      style={{background:bg,border:`1.5px solid ${border}`,borderRadius:12,padding:"14px 16px",color:col,fontSize:13,fontWeight:500,cursor:done?"default":"pointer",textAlign:"left",display:"flex",alignItems:"center",gap:10,width:"100%",minHeight:q.type==="vergelijking"?70:60}}>
                       <span style={{minWidth:24,height:24,borderRadius:7,background:"rgba(255,255,255,.07)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,flexShrink:0,marginTop:1}}>
                         {done?(i===q.answer?"✓":i===sel?"✗":String.fromCharCode(65+i)):String.fromCharCode(65+i)}
-                      </span>{opt}
+                      </span>
+                      {typeof opt==="object"&&opt.moeder
+                        ? <VervalVergelijking moeder={opt.moeder} dochter={opt.dochter} deeltje={opt.deeltje}/>
+                        : opt}
                     </button>
                   );
                 })}
