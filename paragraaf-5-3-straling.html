@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>§5.3 Ioniserend en Doordringend Vermogen · HAVO</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <script src="shop-data.js"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{background:#0a0f1e;color:#f1f5f9;font-family:'Segoe UI',system-ui,sans-serif}
+    ::-webkit-scrollbar{width:6px;height:6px}
+    ::-webkit-scrollbar-track{background:rgba(255,255,255,.05)}
+    ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:3px}
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+// SHOP, CAT_LABELS, DEFAULT_AVATAR, DEFAULT_OWNED, renderAvatarHTML, applyAppBackground → geladen via shop-data.js
+
+function AvatarDisplay({ avatar, size=64 }) {
+  return <span dangerouslySetInnerHTML={{__html: renderAvatarHTML(avatar, size)}} style={{display:"contents"}}/>;
+}
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+const pick = arr => arr[Math.floor(Math.random()*arr.length)];
+const fmt  = n => { const r = Math.round(n * 100) / 100; return Number.isInteger(r) ? String(r) : parseFloat(r.toFixed(2)).toString().replace(".",","); };
+
+function makeOptions(correct, wrongs) {
+  const unique = [...new Set(wrongs.filter(w => String(w) !== String(correct)))];
+  const all = [correct, ...unique.slice(0, 3)];
+  let pad = 1; while (all.length < 4) all.push(`${pad++}?`);
+  for (let i = all.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [all[i], all[j]] = [all[j], all[i]];
+  }
+  return { options: all, answer: all.indexOf(correct) };
+}
+
+// ─── SVG: DOORDRINGEND VERMOGEN DIAGRAM ───────────────────────────────────────
+function DoordringendDiagram({ highlightType }) {
+  const types = [
+    { label: "α", color: "#f87171", blocked: 1, desc: "Papier / huid" },
+    { label: "β", color: "#fb923c", blocked: 2, desc: "Metaal (mm)" },
+    { label: "γ", color: "#34d399", blocked: 3, desc: "Lood (cm)" },
+  ];
+  const W = 300, H = 130;
+  return (
+    <div style={{background:"linear-gradient(135deg,#0f172a,#1e293b)",borderRadius:12,padding:"14px 12px",margin:"12px 0",border:"1px solid #334155"}}>
+      <div style={{fontSize:10,color:"#64748b",marginBottom:10,fontFamily:"monospace",letterSpacing:1}}>DOORDRINGEND VERMOGEN — hoe diep gaat de straling?</div>
+      <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{display:"block"}}>
+        {/* Materiaalblokken */}
+        {[{x:80,w:8,label:"Papier",c:"#fbbf24"},{x:130,w:16,label:"Metaal",c:"#94a3b8"},{x:200,w:30,label:"Lood",c:"#475569"}].map(({x,w,label,c},i)=>(
+          <g key={i}>
+            <rect x={x} y={20} width={w} height={80} fill={c} opacity={0.35} rx={2}/>
+            <text x={x+w/2} y={14} fill={c} fontSize="8" textAnchor="middle" fontFamily="monospace">{label}</text>
+          </g>
+        ))}
+        {/* Straallijnen */}
+        {types.map(({label,color,blocked},i)=>{
+          const y = 35 + i * 28;
+          const hl = highlightType === label;
+          const stops = [80, 130, 200];
+          const endX = blocked < 3 ? stops[blocked - 1] + [8,16,30][blocked-1]/2 : 285;
+          return (
+            <g key={label}>
+              <line x1={8} y1={y} x2={endX} y2={y} stroke={color} strokeWidth={hl ? 3 : 1.8} strokeDasharray={hl ? "none" : "none"} opacity={hl ? 1 : 0.55}/>
+              {blocked < 3 && <polygon points={`${endX-4},${y-4} ${endX+2},${y} ${endX-4},${y+4}`} fill={color} opacity={hl ? 1 : 0.5}/>}
+              {blocked === 3 && <polygon points={`${endX-6},${y-4} ${endX},${y} ${endX-6},${y+4}`} fill={color} opacity={hl ? 1 : 0.5}/>}
+              <rect x={1} y={y-7} width={14} height={14} rx={3} fill={color} opacity={hl?0.25:0.12} stroke={color} strokeWidth={hl?1.5:0.8}/>
+              <text x={8} y={y+4} fill={color} fontSize="9" textAnchor="middle" fontWeight={hl?"700":"400"} fontFamily="monospace">{label}</text>
+            </g>
+          );
+        })}
+      </svg>
+      <div style={{display:"flex",gap:10,marginTop:6}}>
+        {types.map(({label,color,desc})=>(
+          <div key={label} style={{flex:1,textAlign:"center",fontSize:10,color:highlightType===label?color:"#64748b"}}>
+            <span style={{fontWeight:700}}>{label}-straling</span><br/>{desc}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── SVG: HALVERINGSDIKTE VISUALISATIE ────────────────────────────────────────
+function HalveringsVisualisatie({ n, d_half, toon_berekening }) {
+  const bars = [];
+  for (let i = 0; i <= n; i++) {
+    bars.push(Math.pow(0.5, i) * 100);
+  }
+  const W = 280, H = 110, PL = 40, PB = 24, PT = 12;
+  const bw = Math.min(36, (W - PL - 20) / (n + 1) - 4);
+  const maxH = H - PB - PT;
+  return (
+    <div style={{background:"linear-gradient(135deg,#0f172a,#1e293b)",borderRadius:12,padding:"10px 8px 6px",margin:"10px 0",border:"1px solid #334155"}}>
+      <div style={{fontSize:10,color:"#64748b",marginBottom:6,fontFamily:"monospace",letterSpacing:1}}>HALVERINGSDIKTE — intensiteit per laag</div>
+      <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{display:"block"}}>
+        {[25,50,75,100].map(pct=>(
+          <g key={pct}>
+            <line x1={PL} y1={PT+maxH*(1-pct/100)} x2={W-10} y2={PT+maxH*(1-pct/100)} stroke="#1e3a5f" strokeWidth="1" strokeDasharray="2,4"/>
+            <text x={PL-4} y={PT+maxH*(1-pct/100)+3} fill="#64748b" fontSize="8" textAnchor="end">{pct}</text>
+          </g>
+        ))}
+        <line x1={PL} y1={PT} x2={PL} y2={PT+maxH} stroke="#475569" strokeWidth="1.5"/>
+        <line x1={PL} y1={PT+maxH} x2={W-8} y2={PT+maxH} stroke="#475569" strokeWidth="1.5"/>
+        <text x={12} y={PT+maxH/2+3} fill="#94a3b8" fontSize="8" fontFamily="monospace">%</text>
+        {bars.map((pct, i) => {
+          const x = PL + 14 + i * (bw + 4);
+          const barH = (pct / 100) * maxH;
+          const isZero = i === 0;
+          return (
+            <g key={i}>
+              <rect x={x} y={PT+maxH-barH} width={bw} height={barH}
+                fill={isZero ? "#60a5fa" : "#34d399"} opacity={0.7} rx={2}/>
+              <text x={x + bw/2} y={PT+maxH-barH-3} fill={isZero ? "#93c5fd" : "#6ee7b7"} fontSize="8" textAnchor="middle" fontFamily="monospace">{Math.round(pct)}%</text>
+              <text x={x + bw/2} y={PT+maxH+16} fill="#64748b" fontSize="8" textAnchor="middle" fontFamily="monospace">
+                {i===0?"0":i+"×d½"}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+// ─── DOORLAATKROMME (grafiek) ──────────────────────────────────────────────────
+function DoorlaatkrommeGrafiek({ d_half, dMax, readPoint }) {
+  const W = 280, H = 155, PL = 42, PB = 28, PT = 10, PR = 12;
+  const w = W - PL - PR, h = H - PB - PT;
+  const mX = d => PL + (d / dMax) * w;
+  const mY = pct => PT + h - (pct / 100) * h;
+  const pts = Array.from({length: 61}, (_, i) => i * dMax / 60);
+  const pathD = "M" + pts.map(d => `${mX(d).toFixed(1)},${mY(Math.pow(0.5, d/d_half)*100).toFixed(1)}`).join("L");
+  const dTicks = Array.from({length: Math.floor(dMax/d_half)+2}, (_, i) => i * d_half).filter(v => v <= dMax);
+  const pTicks = [0, 25, 50, 75, 100];
+  return (
+    <div style={{display:"flex",justifyContent:"center",margin:"10px 0"}}>
+      <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{background:"linear-gradient(135deg,#0f172a,#1e293b)",borderRadius:12,border:"1px solid #334155",display:"block"}}>
+        {dTicks.map(d=>(
+          <g key={d}>
+            <line x1={mX(d)} y1={PT} x2={mX(d)} y2={PT+h} stroke="#1e3a5f" strokeWidth="1" strokeDasharray="2,4"/>
+            <text x={mX(d)} y={PT+h+18} fill="#64748b" fontSize="8" textAnchor="middle" fontFamily="monospace">{d}</text>
+          </g>
+        ))}
+        {pTicks.map(p=>(
+          <g key={p}>
+            <line x1={PL} y1={mY(p)} x2={PL+w} y2={mY(p)} stroke="#1e3a5f" strokeWidth="1" strokeDasharray="2,4"/>
+            <text x={PL-4} y={mY(p)+3} fill="#64748b" fontSize="8" textAnchor="end" fontFamily="monospace">{p}</text>
+          </g>
+        ))}
+        <line x1={PL} y1={PT-4} x2={PL} y2={PT+h} stroke="#475569" strokeWidth="1.5"/>
+        <line x1={PL} y1={PT+h} x2={PL+w+4} y2={PT+h} stroke="#475569" strokeWidth="1.5"/>
+        <text x={PL+4} y={PT+9} fill="#94a3b8" fontSize="8" fontFamily="monospace">I (%)</text>
+        <text x={PL+w/2} y={H-4} fill="#94a3b8" fontSize="8" fontFamily="monospace" textAnchor="middle">d (cm)</text>
+        <path d={pathD} fill="none" stroke="#f59e0b" strokeWidth="2.2" strokeLinecap="round"/>
+        {readPoint && (
+          <>
+            <line x1={mX(readPoint.d)} y1={mY(readPoint.pct)} x2={mX(readPoint.d)} y2={PT+h} stroke="#ef4444" strokeWidth="1.2" strokeDasharray="3,3"/>
+            <line x1={PL} y1={mY(readPoint.pct)} x2={mX(readPoint.d)} y2={mY(readPoint.pct)} stroke="#ef4444" strokeWidth="1.2" strokeDasharray="3,3"/>
+            <circle cx={mX(readPoint.d)} cy={mY(readPoint.pct)} r={4} fill="#ef4444"/>
+            <text x={mX(readPoint.d)+6} y={mY(readPoint.pct)-4} fill="#ef4444" fontSize="8" fontFamily="monospace">{readPoint.pct}% bij d={readPoint.d} cm</text>
+          </>
+        )}
+      </svg>
+    </div>
+  );
+}
+
+// ─── BEREKENING VRAGEN GENERATOR ──────────────────────────────────────────────
+function generateCalcQuestions() {
+  const qs = [];
+
+  // Q1: Halveringsdikte aflezen — bij n halveringsdiktes wat % door?
+  const sc1 = pick([
+    { n: 3, pct: 12.5, d_half: 2.1, d_half_label: "2,1 cm (ijzer, 2,0 MeV)" },
+    { n: 4, pct: 6.25, d_half: 1.5, d_half_label: "1,5 cm" },
+    { n: 2, pct: 25, d_half: 3.0, d_half_label: "3,0 cm" },
+    { n: 5, pct: 3.125, d_half: 2.5, d_half_label: "2,5 cm (staal, 1,0 MeV)" },
+  ]);
+  {
+    const correct = `${fmt(sc1.pct)} %`;
+    const { options, answer } = makeOptions(correct, [`${fmt(sc1.pct * 2)} %`, `${fmt(sc1.pct / 2)} %`, `${sc1.n * 10} %`]);
+    qs.push({
+      type: "halvering",
+      question: `De halveringsdikte van een materiaal voor γ-straling is ${fmt(sc1.d_half)} cm. Een bron zendt straling uit met intensiteit I₀. Hoeveel procent van de straling blijft over na ${sc1.n} halveringsdiktes?`,
+      given: [["n", `${sc1.n} halveringsdiktes`], ["formule", "I = I₀ · (½)ⁿ"]],
+      halvData: { n: sc1.n, d_half: sc1.d_half },
+      options, answer,
+      explanation: `Na elke halveringsdikte blijft 50% over: (½)${sc1.n} = ${fmt(sc1.pct / 100)}. Dus ${fmt(sc1.pct)} % van I₀ blijft over.`
+    });
+  }
+
+  // Q2: Dikte berekenen uit gegeven doordringingspercentage (n² methode)
+  const sc2 = pick([
+    { pct: 6.25, n: 4, d_half: 2.1, mat: "ijzer", energy: "2,0 MeV" },
+    { pct: 25,   n: 2, d_half: 2.5, mat: "staal",  energy: "1,0 MeV" },
+    { pct: 12.5, n: 3, d_half: 1.5, mat: "lood",   energy: "0,5 MeV" },
+    { pct: 3.125,n: 5, d_half: 2.1, mat: "ijzer",  energy: "2,0 MeV" },
+  ]);
+  {
+    const d = sc2.n * sc2.d_half;
+    const correct = `${fmt(d)} cm`;
+    const { options, answer } = makeOptions(correct, [`${fmt(d + sc2.d_half)} cm`, `${fmt(d - sc2.d_half)} cm`, `${sc2.n} cm`]);
+    qs.push({
+      type: "calc",
+      question: `Een ${sc2.mat}plaat laat ${fmt(sc2.pct)} % van γ-straling (${sc2.energy}) door. De halveringsdikte van ${sc2.mat} is ${fmt(sc2.d_half)} cm. Hoe dik is de plaat?`,
+      given: [["I/I₀", `${fmt(sc2.pct)} %`], ["d½", `${fmt(sc2.d_half)} cm`], ["tip", "bepaal eerst n via (½)ⁿ"]],
+      options, answer,
+      explanation: `${fmt(sc2.pct)} % = (½)ⁿ → n = ${sc2.n}. Dikte d = n × d½ = ${sc2.n} × ${fmt(sc2.d_half)} = ${fmt(d)} cm.`
+    });
+  }
+
+  // Q3: Percentage doorgelaten berekenen met formule
+  const sc3 = pick([
+    { I0: 100, n: 3, result: 12.5 },
+    { I0: 100, n: 4, result: 6.25 },
+    { I0: 100, n: 5, result: 3.125 },
+    { I0: 100, n: 2, result: 25 },
+  ]);
+  {
+    const correct = `${fmt(sc3.result)} %`;
+    const { options, answer } = makeOptions(correct, [`${fmt(sc3.result * 2)} %`, `${fmt(sc3.result / 2)} %`, `${sc3.n * 10} %`]);
+    qs.push({
+      type: "calc",
+      question: `Bereken het percentage doorgelaten γ-straling na ${sc3.n} halveringsdiktes. Gebruik I = I₀ · (½)ⁿ.`,
+      given: [["I₀", "100 %"], ["n", `${sc3.n}`]],
+      options, answer,
+      explanation: `I = 100 · (½)${sc3.n} = 100 · ${fmt(Math.pow(0.5, sc3.n))} = ${fmt(sc3.result)} %.`
+    });
+  }
+
+  // Q4: Loodschort — typisch eindexamen-stijl (gebaseerd op opdracht B30)
+  const sc4 = pick([
+    { mat: "lood", d_mm: 0.53, d_half_mm: 0.12, energy: "100 keV" },
+    { mat: "lood", d_mm: 0.24, d_half_mm: 0.12, energy: "100 keV" },
+    { mat: "lood", d_mm: 0.36, d_half_mm: 0.12, energy: "100 keV" },
+  ]);
+  {
+    const n = sc4.d_mm / sc4.d_half_mm;
+    const pctDoor = Math.pow(0.5, n) * 100;
+    const pctGehouden = 100 - pctDoor;
+    const correct = `${fmt(pctGehouden)} %`;
+    const { options, answer } = makeOptions(correct, [`${fmt(pctDoor)} %`, `${fmt(pctGehouden / 2)} %`, `${fmt(n * 10)} %`]);
+    qs.push({
+      type: "calc",
+      question: `Een loodschort heeft een dikte van ${fmt(sc4.d_mm)} mm. De halveringsdikte van lood voor röntgenstraling (${sc4.energy}) is ${fmt(sc4.d_half_mm)} mm. Hoeveel procent van de straling houdt het schort tegen?`,
+      given: [["d", `${fmt(sc4.d_mm)} mm`], ["d½", `${fmt(sc4.d_half_mm)} mm`], ["tip", "n = d / d½"]],
+      options, answer,
+      explanation: `n = ${fmt(sc4.d_mm)} / ${fmt(sc4.d_half_mm)} = ${fmt(n)}. Doorgelaten: (½)${fmt(n)} = ${fmt(pctDoor)} %. Tegengehouden = 100 - ${fmt(pctDoor)} = ${fmt(pctGehouden)} %.`
+    });
+  }
+
+  // Q5: n berekenen bij gegeven %-waarden (opdracht B31-stijl)
+  const sc5 = pick([
+    { pct: 6.25, n: 4, d_half: 2.1, mat: "ijzer", dAns: 8.4 },
+    { pct: 25,   n: 2, d_half: 2.5, mat: "staal", dAns: 5.0 },
+    { pct: 12.5, n: 3, d_half: 3.0, mat: "beton",  dAns: 9.0 },
+  ]);
+  {
+    const correct = `${fmt(sc5.dAns)} cm`;
+    const { options, answer } = makeOptions(correct, [`${fmt(sc5.dAns + sc5.d_half)} cm`, `${fmt(sc5.dAns - sc5.d_half)} cm`, `${sc5.n} cm`]);
+    qs.push({
+      type: "calc",
+      question: `Een ${sc5.mat}plaat laat ${fmt(sc5.pct)} % γ-straling door. De halveringsdikte voor deze straling is ${fmt(sc5.d_half)} cm. Bereken de dikte van de plaat.`,
+      given: [["I/I₀", `${fmt(sc5.pct)} %`], ["d½", `${fmt(sc5.d_half)} cm`]],
+      options, answer,
+      explanation: `${fmt(sc5.pct)} % = (½)ⁿ → n = ${sc5.n}. d = n × d½ = ${sc5.n} × ${fmt(sc5.d_half)} = ${fmt(sc5.dAns)} cm.`
+    });
+  }
+
+  // Q6: Intensiteitsverhouding bij twee diktes (opdracht C35-stijl)
+  {
+    const d_half = 2.5, d1 = 50, d2 = 30;
+    const n1 = d1 / d_half, n2 = d2 / d_half;
+    const I1 = Math.pow(0.5, n1), I2 = Math.pow(0.5, n2);
+    const factor = Math.round(I2 / I1);
+    const correct = `${factor}×`;
+    const { options, answer } = makeOptions(correct, [`${factor * 2}×`, `${Math.round(factor / 2)}×`, `${n1 - n2}×`]);
+    qs.push({
+      type: "calc",
+      question: `Bij γ-straling (1,0 MeV) is de halveringsdikte van staal 2,5 cm. Een vat heeft wanden van 50 cm. Als de dikte wordt teruggebracht naar 30 cm, met welke factor neemt de stralingsintensiteit buiten het vat dan toe?`,
+      given: [["d½", "2,5 cm"], ["d₁", "50 cm"], ["d₂", "30 cm"]],
+      options, answer,
+      explanation: `n₁ = 50/2,5 = 20 → I₁ = (½)²⁰. n₂ = 30/2,5 = 12 → I₂ = (½)¹². Factor = (½)¹² / (½)²⁰ = 2⁸ = ${factor}×.`
+    });
+  }
+
+  return qs;
+}
+
+// ─── LEVELS ───────────────────────────────────────────────────────────────────
+const LEVELS = [
+  {
+    id: 1, title: "Ioniserend Vermogen", icon: "⚡",
+    description: "α, β en γ — wat doen ze met materie?",
+    questions: [
+      {
+        type: "diagram",
+        question: "Welke soort straling heeft het GROOTSTE ioniserend vermogen?",
+        diagType: "α",
+        options: ["α-straling", "β-straling", "γ-straling", "Röntgenstraling"],
+        answer: 0,
+        explanation: "α-deeltjes hebben een grote massa en botsen krachtig. De kans op ionisatie bij een botsing is veel groter dan bij β-deeltjes. γ-fotonen hebben geen massa en ioniseren het minst."
+      },
+      {
+        type: "text",
+        question: "Hoe ioniseert een β-deeltje een atoom?",
+        options: [
+          "Het β-deeltje trekt elektronen aan met zijn magnetisch veld",
+          "Het β-deeltje botst met een elektron van het atoom en stoot dit eruit",
+          "Het β-deeltje splijt de atoomkern",
+          "Het β-deeltje absorbeert energie van het atoom"
+        ],
+        answer: 1,
+        explanation: "Een β-deeltje (snel elektron) botst met een elektron van een atoom. Dit elektron krijgt genoeg energie om uit het atoom te ontsnappen → ionisatie. Het β-deeltje verliest bij elke botsing energie."
+      },
+      {
+        type: "text",
+        question: "Waarom is het ioniserend vermogen van γ-straling klein?",
+        options: [
+          "Omdat γ-fotonen te groot zijn om atomen te raken",
+          "Omdat γ-fotonen geen lading hebben en de kans op energieoverdracht aan een elektron klein is",
+          "Omdat γ-straling geen energie heeft",
+          "Omdat γ-fotonen altijd de kern raken, niet de elektronen"
+        ],
+        answer: 1,
+        explanation: "γ-fotonen hebben geen massa of lading. De kans dat een foton energie afgeeft aan een elektron is tamelijk klein. Hierdoor dringen γ-fotonen ver door zonder veel ionisaties te veroorzaken."
+      },
+      {
+        type: "text",
+        question: "Een α-deeltje heeft een kleinere snelheid dan een β-deeltje, maar een groter ioniserend vermogen. Hoe kan dat?",
+        options: [
+          "Omdat α-deeltjes een positieve lading hebben en β-deeltjes negatief",
+          "Omdat α-deeltjes een veel grotere massa hebben, waardoor ze meer energie bezitten en vaker ioniseren",
+          "Omdat α-deeltjes sneller zijn dan β-deeltjes",
+          "Omdat β-deeltjes door materiaal worden geabsorbeerd voordat ze ioniseren"
+        ],
+        answer: 1,
+        explanation: "Hoewel α-deeltjes langzamer zijn, heeft hun grotere massa meer energie tot gevolg. Bij een botsing is de kans op ionisatie veel groter. α-straling ioniseert daardoor sterk, maar heeft een korte dracht."
+      },
+      {
+        type: "text",
+        question: "Wat is een ion?",
+        options: [
+          "Een atoom dat een extra neutron heeft",
+          "Een atoom of molecuul dat een elektron verloren of gewonnen heeft",
+          "Een radioactief deeltje dat wordt uitgestoten",
+          "Een atoomkern zonder elektronen"
+        ],
+        answer: 1,
+        explanation: "Een ion is een atoom of molecuul dat niet meer elektrisch neutraal is, doordat het één of meer elektronen heeft verloren (positief ion) of gewonnen (negatief ion)."
+      },
+      {
+        type: "text",
+        question: "Rangschik de straling van KLEIN naar GROOT ioniserend vermogen.",
+        options: [
+          "γ < β < α",
+          "α < β < γ",
+          "β < γ < α",
+          "γ < α < β"
+        ],
+        answer: 0,
+        explanation: "α-straling heeft het grootste ioniserend vermogen (grote massa, traag, veel botsingen), dan β-straling (snel, licht), dan γ-straling (fotonen, kleine kans op ionisatie)."
+      },
+    ]
+  },
+  {
+    id: 2, title: "Dracht en Doordringend Vermogen", icon: "🛡️",
+    description: "Hoe ver dringt straling door?",
+    questions: [
+      {
+        type: "diagram",
+        question: "Welke soort straling dringt het DIEPST door in materialen?",
+        diagType: "γ",
+        options: ["α-straling", "β-straling", "γ-straling", "Ze dringen allemaal even diep door"],
+        answer: 2,
+        explanation: "γ-straling heeft het grootste doordringend vermogen. Het dringt zelfs door centimeters dikke loodplaten of meters beton. α-straling wordt al gestopt door een vel papier of huidlaag."
+      },
+      {
+        type: "text",
+        question: "Wat is de dracht van een deeltje?",
+        options: [
+          "De snelheid waarmee het deeltje beweegt",
+          "De maximale afstand die het deeltje in een materiaal kan afleggen",
+          "De energie die het deeltje bij ionisatie afgeeft",
+          "Het aantal ionisaties per centimeter"
+        ],
+        answer: 1,
+        explanation: "De dracht is de maximale afstand die een α- of β-deeltje in een bepaald materiaal aflegt. Na die afstand heeft het deeltje al zijn energie verbruikt aan ionisaties en staat het stil."
+      },
+      {
+        type: "text",
+        question: "α-straling is gevaarlijk als de bron BINNEN het lichaam zit. Hoe kan dat als de dracht zo klein is?",
+        options: [
+          "Van binnenuit kan α-straling wél door weefsels heen dringen",
+          "Van binnenuit ioniseert α-straling alles in de directe omgeving — met veel energie in een kleine ruimte",
+          "α-straling is altijd even gevaarlijk, zowel binnen als buiten het lichaam",
+          "α-straling wordt van binnenuit omgezet in β-straling"
+        ],
+        answer: 1,
+        explanation: "Juist doordat α-straling weinig dringt maar sterk ioniseert, is alle energie geconcentreerd in een klein volume weefsel — dat is bijzonder schadelijk van binnenuit."
+      },
+      {
+        type: "text",
+        question: "Waarmee kun je α-straling stoppen van een externe bron?",
+        options: [
+          "Alleen met meters betonnen muur",
+          "Met een laagje lood van enkele millimeters",
+          "Met een vel papier of de bovenste laag huid",
+          "Alleen in een vacuüm"
+        ],
+        answer: 2,
+        explanation: "α-deeltjes worden al gestopt door een vel papier, een laagje lucht van enkele centimeters of de bovenste huidlaag. Hun dracht is zeer klein door het grote ioniserend vermogen."
+      },
+      {
+        type: "text",
+        question: "Waarom gebruik je bij γ-straling de halveringsdikte in plaats van de dracht?",
+        options: [
+          "Omdat γ-straling geen dracht heeft",
+          "Omdat γ-straling in theorie nooit volledig wordt tegengehouden — de intensiteit halveert steeds maar bereikt nooit nul",
+          "Omdat de dracht van γ-straling in lood precies 1 cm is",
+          "Omdat γ-straling sneller beweegt dan α- en β-straling"
+        ],
+        answer: 1,
+        explanation: "γ-straling (en röntgenstraling) heeft geen vaste dracht: de intensiteit neemt exponentieel af, maar wordt nooit echt nul. Daarom gebruik je de halveringsdikte — de dikte waarbij de helft doorgelaten wordt."
+      },
+      {
+        type: "text",
+        question: "Welk materiaal stopt β-straling het beste?",
+        options: [
+          "Een vel papier",
+          "Een laagje metaal van enkele millimeters",
+          "Centimeters dikke loodplaten",
+          "Lucht van enkele centimeters"
+        ],
+        answer: 1,
+        explanation: "β-straling kan worden gestopt door een laagje metaal (enkele mm) of enkele centimeters lichaamsweefsel. Papier is te dun; lood is nodig voor γ-straling."
+      },
+    ]
+  },
+  {
+    id: 3, title: "Rekenen met Halveringsdikte", icon: "🔢",
+    description: "Gebruik I = I₀ · (½)ⁿ",
+    questions: [], generate: generateCalcQuestions
+  },
+  {
+    id: 4, title: "Toepassingen van Straling", icon: "🏥",
+    description: "Straling in de praktijk",
+    questions: [
+      {
+        type: "text",
+        question: "Röntgenfoto's worden gemaakt van botten, niet van spieren. Waarom?",
+        options: [
+          "Omdat spieren te klein zijn om te fotograferen",
+          "Omdat botten röntgenstraling beter absorberen dan zacht weefsel, waardoor ze zichtbaar worden",
+          "Omdat röntgenstraling alleen door spieren heen gaat, niet door botten",
+          "Omdat botten radioactief zijn"
+        ],
+        answer: 1,
+        explanation: "Botten bevatten calcium dat röntgenstraling goed absorbeert. Het negatief is daar lichter. Zacht weefsel absorbeert minder → donkerder op de foto. Dit contrast maakt botten zichtbaar."
+      },
+      {
+        type: "text",
+        question: "Een radioactieve tracer wordt in een pijpleiding geïnjecteerd. Welke eigenschap maakt γ-straling geschikt als tracer?",
+        options: [
+          "Het grote ioniserend vermogen",
+          "De kleine dracht — de tracer blijft in de pijp",
+          "Het grote doordringend vermogen — de straling is buiten de pijpleiding te meten",
+          "De tracer maakt de vloeistof veiliger"
+        ],
+        answer: 2,
+        explanation: "γ-straling dringt door de wand van de pijpleiding heen en kan buiten worden gedetecteerd. Zo kun je precies volgen waar de grens tussen twee vloeistoffen zich bevindt."
+      },
+      {
+        type: "text",
+        question: "Bij voedselconservering met straling wordt kobalt-60 gebruikt. Wat is het doel?",
+        options: [
+          "De voedingsstoffen in het voedsel versterken",
+          "Bacteriën in het voedsel doden zodat het langer bewaarbaar is",
+          "Het voedsel radioactief maken zodat het houdbaar is",
+          "De smaak van het voedsel verbeteren"
+        ],
+        answer: 1,
+        explanation: "De ioniserende straling van kobalt-60 doodt bacteriën. Het voedsel zelf wordt niet radioactief en is veilig te eten. Het is een methode voor voedselconservering."
+      },
+      {
+        type: "text",
+        question: "Bij radiotherapie wordt een tumor bestraald met röntgenstraling van hoge intensiteit. Welk nadeel heeft deze methode?",
+        options: [
+          "De tumor kan niet volledig worden gedood",
+          "Ook gezond weefsel rond de tumor wordt bestraald en beschadigd",
+          "Röntgenstraling is te goedkoop om effectief te zijn",
+          "De patiënt wordt zelf radioactief"
+        ],
+        answer: 1,
+        explanation: "Het is niet te voorkomen dat ook gezond weefsel rondom de tumor bestraald wordt. Dit is een bekend bijeffect van radiotherapie. Artsen proberen de schade te beperken door de straling nauwkeurig te focussen."
+      },
+      {
+        type: "text",
+        question: "Op luchthavens worden röntgenscanners gebruikt voor bagage. Welk principe maakt dit mogelijk?",
+        options: [
+          "Alle materialen absorberen röntgenstraling even goed, waardoor je ze kunt zien",
+          "Verschillende materialen hebben elk hun eigen halveringsdikte, waardoor er een contrastfoto ontstaat",
+          "Röntgenstraling maakt de voorwerpen in bagage zichtbaar door warmte",
+          "Röntgenstraling reageert alleen op metalen"
+        ],
+        answer: 1,
+        explanation: "Elk materiaal heeft zijn eigen halveringsdikte. Zware materialen (metalen) laten minder straling door dan lichte materialen (kleding). Dit geeft contrast op de foto — zo zie je wat er in de tas zit."
+      },
+      {
+        type: "text",
+        question: "Een full body scanner op een vliegveld gebruikt microgolfstraling. Waarom is dit veiliger dan röntgenstraling?",
+        options: [
+          "Microgolven gaan sneller dan röntgenstraling",
+          "Microgolffotonen hebben te weinig energie om atomen te ioniseren en zijn daardoor onschadelijk",
+          "Microgolven worden volledig door kleding tegengehouden",
+          "Microgolven zijn onzichtbaar voor de beveiliger"
+        ],
+        answer: 1,
+        explanation: "Microgolffotonen hebben veel minder energie dan röntgenfotonen. Ze kunnen atomen niet ioniseren en zijn daardoor niet schadelijk voor het menselijk lichaam."
+      },
+    ]
+  },
+];
+
+// ─── APP ──────────────────────────────────────────────────────────────────────
+const LC = ["#f59e0b", "#34d399", "#60a5fa", "#f472b6"];
+const LB = [
+  "linear-gradient(135deg,#78350f,#92400e)",
+  "linear-gradient(135deg,#064e3b,#065f46)",
+  "linear-gradient(135deg,#1e3a8a,#1d4ed8)",
+  "linear-gradient(135deg,#831843,#9d174d)"
+];
+
+function App() {
+  const [screen, setScreen]   = useState("home");
+  const [lvlIdx, setLvlIdx]   = useState(0);
+  const [qIdx, setQIdx]       = useState(0);
+  const [sel, setSel]         = useState(null);
+  const [done, setDone]       = useState(false);
+  const [scores, setScores]   = useState([0, 0, 0, 0]);
+  const [pts, setPts]         = useState(0);
+  const [streak, setStreak]   = useState(0);
+  const [maxStr, setMaxStr]   = useState(0);
+  const [stars, setStars]     = useState([0, 0, 0, 0]);
+  const [shake, setShake]     = useState(false);
+  const [genQuestions, setGenQuestions] = useState(null);
+  const [avatar, setAvatar]   = useState(DEFAULT_AVATAR);
+  const [owned, setOwned]     = useState(DEFAULT_OWNED);
+  const [shopCat, setShopCat] = useState("body");
+  const [buyFlash, setBuyFlash] = useState(null);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("straling_save");
+      if (raw) {
+        const d = JSON.parse(raw);
+        if (d.avatar) { const av = {...DEFAULT_AVATAR, ...d.avatar}; setAvatar(av); applyAppBackground(av); }
+        if (d.owned) { const ow = d.owned.filter(id => !id.startsWith("face_")); if (!ow.includes("badge_none")) ow.push("badge_none"); setOwned(ow); }
+        if (d.pts !== undefined) setPts(d.pts);
+        if (d.stars_53) setStars(d.stars_53);
+      }
+    } catch (e) {}
+  }, []);
+
+  const save = (av, ow, p, st) => {
+    try {
+      const prev = JSON.parse(localStorage.getItem("straling_save")) || {};
+      localStorage.setItem("straling_save", JSON.stringify({...prev, avatar: av, owned: ow, pts: p, ...(st ? {stars_53: st} : {})}));
+    } catch (e) {}
+  };
+
+  const addPoints = n => setPts(p => { const np = p + n; save(avatar, owned, np); return np; });
+
+  const buyItem = item => {
+    if (owned.includes(item.id) || pts < item.price) return;
+    const no = [...owned, item.id], np = pts - item.price;
+    setOwned(no); setPts(np); setBuyFlash(item.id); setTimeout(() => setBuyFlash(null), 1200); save(avatar, no, np);
+  };
+  const equipItem = (cat, item) => {
+    if (!owned.includes(item.id)) return;
+    const na = {...avatar, [cat]: item.id}; setAvatar(na); save(na, owned, pts);
+    if (cat === "appbg") applyAppBackground(na);
+  };
+
+  const level = LEVELS[lvlIdx];
+  const questions = (lvlIdx === 2 && genQuestions) ? genQuestions : level?.questions;
+  const q = questions?.[qIdx], total = questions?.length;
+  const correct = done && sel === q?.answer;
+  const goHome = () => { setScreen("home"); setSel(null); setDone(false); };
+
+  const handleConfirm = () => {
+    if (sel === null) return;
+    setDone(true);
+    if (sel === q.answer) {
+      const ns = streak + 1; setStreak(ns); setMaxStr(s => Math.max(s, ns));
+      addPoints(10 + (ns > 2 ? 5 : 0));
+      setScores(s => { const n = [...s]; n[lvlIdx]++; return n; });
+    } else { setStreak(0); setShake(true); setTimeout(() => setShake(false), 600); }
+  };
+
+  const handleNext = () => {
+    setSel(null); setDone(false);
+    if (qIdx + 1 < total) { setQIdx(i => i + 1); }
+    else {
+      const pct = scores[lvlIdx] / total;
+      const newStar = pct >= .85 ? 3 : pct >= .6 ? 2 : pct >= .33 ? 1 : 0;
+      setStars(s => { const n = [...s]; n[lvlIdx] = newStar; save(avatar, owned, pts, n); return n; });
+      setScreen("result");
+    }
+  };
+
+  const startLevel = i => {
+    setLvlIdx(i); setQIdx(0); setSel(null); setDone(false);
+    setScores(s => { const n = [...s]; n[i] = 0; return n; });
+    if (i === 2) setGenQuestions(LEVELS[2].generate());
+    setScreen("question");
+  };
+
+  const totalStars = stars.reduce((a, b) => a + b, 0);
+  const maxStars = stars.length * 3;
+
+  return (
+    <div style={{minHeight:"100vh",background:"linear-gradient(160deg,#0a0f1e,#111827 60%,#0a0f1e)",fontFamily:"'Segoe UI',system-ui,sans-serif",color:"#f1f5f9",paddingBottom:40}}>
+      <style>{`
+        @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+        @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}60%{transform:translateX(8px)}}
+        @keyframes popIn{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
+        .ch:hover{transform:translateY(-3px);box-shadow:0 12px 40px rgba(0,0,0,.5)!important;transition:all .2s}
+        .ob:hover{border-color:#fbbf24!important;background:rgba(251,191,36,.08)!important}
+        button{font-family:inherit}
+        .sidebar{width:220px;flex-shrink:0;display:flex;flex-direction:column;padding:20px 16px;border-right:1px solid rgba(255,255,255,.07);height:calc(100vh - 49px);position:sticky;top:49px;overflow-y:auto}
+        .main-content{flex:1;min-width:0;padding:24px 40px;overflow-y:auto}
+        .levels-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+        @media(max-width:700px){.sidebar{display:none!important}.main-content{padding:16px 14px}}
+        @media(max-width:480px){.levels-grid{grid-template-columns:1fr}}
+      `}</style>
+
+      {/* HEADER */}
+      <div style={{background:"rgba(255,255,255,.03)",borderBottom:"1px solid rgba(255,255,255,.07)",padding:"9px 16px",display:"flex",alignItems:"center",gap:10,position:"sticky",top:0,zIndex:10,backdropFilter:"blur(8px)"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <a href="index.html" style={{background:"rgba(255,255,255,.07)",border:"1px solid rgba(255,255,255,.12)",borderRadius:8,padding:"5px 10px",color:"#94a3b8",cursor:"pointer",fontSize:12,textDecoration:"none"}}>☢️ Overzicht</a>
+          {screen !== "home" && <button onClick={goHome} style={{background:"rgba(255,255,255,.07)",border:"1px solid rgba(255,255,255,.12)",borderRadius:8,padding:"5px 10px",color:"#94a3b8",cursor:"pointer",fontSize:12,marginRight:2}}>← Levels</button>}
+          <span style={{fontSize:20}}>☢️</span>
+          <div><div style={{fontWeight:700,fontSize:13}}>Straling Game</div><div style={{fontSize:10,color:"#64748b"}}>HAVO · §5.3</div></div>
+        </div>
+      </div>
+
+      <div style={{display:"flex",minHeight:"calc(100vh - 49px)"}}>
+        {/* SIDEBAR */}
+        <div className="sidebar">
+          <div style={{textAlign:"center",marginBottom:20,padding:"16px 12px",background:"rgba(255,255,255,.04)",borderRadius:16,border:"1px solid rgba(255,255,255,.07)"}}>
+            <button onClick={() => setScreen("shop")} style={{background:"none",border:"none",cursor:"pointer",display:"block",margin:"0 auto 10px"}}>
+              <AvatarDisplay avatar={avatar} size={72}/>
+            </button>
+            <div style={{fontWeight:700,fontSize:13,marginBottom:2}}>Jouw avatar</div>
+            <div style={{fontSize:11,color:"#94a3b8",marginBottom:10}}>klik om aan te passen</div>
+            <div style={{display:"flex",justifyContent:"center",gap:16}}>
+              <div style={{textAlign:"center"}}>
+                <div style={{fontSize:18,fontWeight:800,color:"#fbbf24"}}>{pts}</div>
+                <div style={{fontSize:10,color:"#64748b"}}>punten</div>
+              </div>
+              <div style={{width:1,background:"rgba(255,255,255,.07)"}}/>
+              <div style={{textAlign:"center"}}>
+                <div style={{fontSize:18,fontWeight:800,color:"#f472b6"}}>🔥{streak}</div>
+                <div style={{fontSize:10,color:"#64748b"}}>streak</div>
+              </div>
+            </div>
+          </div>
+          <div style={{marginBottom:16}}>
+            <div style={{fontSize:10,color:"#64748b",letterSpacing:1,marginBottom:10,fontWeight:700}}>LEVELS</div>
+            {LEVELS.map((l, i) => (
+              <div key={i} onClick={() => startLevel(i)} className="ch"
+                style={{display:"flex",alignItems:"center",gap:10,padding:"10px 11px",borderRadius:12,marginBottom:6,
+                  background:screen==="question"&&lvlIdx===i?LB[i]:"rgba(255,255,255,.03)",
+                  border:`1px solid ${screen==="question"&&lvlIdx===i?LC[i]+"60":"rgba(255,255,255,.06)"}`,
+                  cursor:"pointer",transition:"all .2s"}}>
+                <span style={{fontSize:18,flexShrink:0}}>{l.icon}</span>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:12,fontWeight:600,color:screen==="question"&&lvlIdx===i?"#f1f5f9":"#cbd5e1",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{l.title}</div>
+                  <div style={{display:"flex",gap:1,marginTop:2}}>{[1,2,3].map(s => <span key={s} style={{fontSize:10,opacity:stars[i]>=s?1:.2}}>⭐</span>)}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{marginTop:"auto",padding:"12px",background:"rgba(255,255,255,.03)",borderRadius:12,border:"1px solid rgba(255,255,255,.06)"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:7}}>
+              <div style={{fontSize:10,color:"#64748b",fontWeight:700}}>TOTAAL STERREN</div>
+              <span style={{fontWeight:700,color:"#fbbf24",fontSize:13}}>{totalStars}/{maxStars}</span>
+            </div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:2,marginBottom:8}}>
+              {[...Array(maxStars)].map((_, i) => <span key={i} style={{fontSize:14,opacity:i<totalStars?1:.2}}>⭐</span>)}
+            </div>
+            <div style={{height:5,background:"rgba(255,255,255,.06)",borderRadius:999}}>
+              <div style={{height:"100%",borderRadius:999,background:"linear-gradient(90deg,#fbbf24,#f59e0b)",width:`${(totalStars/maxStars)*100}%`,transition:"width .6s ease"}}/>
+            </div>
+          </div>
+          <button onClick={() => setScreen("shop")} className="ch" style={{marginTop:10,width:"100%",padding:"11px",background:"linear-gradient(135deg,#1e3a5f,#1e293b)",border:"1px solid rgba(96,165,250,.25)",borderRadius:12,color:"#93c5fd",fontWeight:600,cursor:"pointer",fontSize:12,display:"flex",alignItems:"center",justifyContent:"center",gap:7}}>
+            🛍️ Avatar Winkel
+          </button>
+        </div>
+
+        {/* MAIN */}
+        <div className="main-content">
+
+          {/* HOME */}
+          {screen === "home" && (
+            <div style={{animation:"fadeIn .4s ease"}}>
+              <div style={{textAlign:"center",marginBottom:26}}>
+                <div style={{fontSize:44,marginBottom:6}}>☢️</div>
+                <h1 style={{fontSize:23,fontWeight:800,margin:0,background:"linear-gradient(90deg,#f59e0b,#34d399)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>Ioniserend en Doordringend Vermogen</h1>
+                <p style={{color:"#94a3b8",marginTop:8,fontSize:13}}>Kies een level en versla alle opdrachten!</p>
+              </div>
+              <div className="levels-grid" style={{marginBottom:24}}>
+                {LEVELS.map((l, i) => (
+                  <div key={i} className="ch" onClick={() => startLevel(i)} style={{background:LB[i],borderRadius:16,padding:"17px 13px",cursor:"pointer",border:`1px solid ${LC[i]}40`,transition:"all .2s",position:"relative",overflow:"hidden"}}>
+                    <div style={{fontSize:28,marginBottom:5}}>{l.icon}</div>
+                    <div style={{fontWeight:700,fontSize:14}}>{l.title}</div>
+                    <div style={{fontSize:11,color:"rgba(255,255,255,.65)",marginTop:3}}>{l.description}</div>
+                    <div style={{marginTop:8,display:"flex",gap:2}}>{[1,2,3].map(s => <span key={s} style={{fontSize:13,opacity:stars[i]>=s?1:.2}}>⭐</span>)}</div>
+                    <div style={{position:"absolute",top:9,right:9,background:"rgba(0,0,0,.3)",borderRadius:7,padding:"2px 7px",fontSize:10,color:LC[i]}}>{i===2?6:l.questions.length} vr.</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{marginTop:20,background:"rgba(255,255,255,.03)",borderRadius:12,padding:14,border:"1px solid rgba(255,255,255,.06)"}}>
+                <div style={{fontSize:11,color:"#64748b",marginBottom:8}}>📚 LEERDOELEN</div>
+                {[
+                  "Het ioniserend vermogen van α, β en γ vergelijken",
+                  "De dracht en het doordringend vermogen uitleggen",
+                  "Rekenen met de halveringsdikteformule I = I₀ · (½)ⁿ",
+                  "Toepassingen van ioniserende straling benoemen en uitleggen"
+                ].map((d, i) => (
+                  <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"4px 0",fontSize:13,color:"#cbd5e1"}}>
+                    <span style={{color:LC[i]}}>▸</span> {d}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* VRAAG */}
+          {screen === "question" && q && (
+            <div style={{animation:"fadeIn .3s ease"}}>
+              <div style={{marginBottom:16}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:7,fontSize:12,color:"#64748b"}}>
+                  <span>{level.icon} {level.title}</span><span>Vraag {qIdx+1} / {total}</span>
+                </div>
+                <div style={{height:5,background:"rgba(255,255,255,.06)",borderRadius:999}}>
+                  <div style={{height:"100%",borderRadius:999,background:`linear-gradient(90deg,${LC[lvlIdx]},${LC[(lvlIdx+1)%4]})`,width:`${((qIdx+(done?1:0))/total)*100}%`,transition:"width .5s ease"}}/>
+                </div>
+              </div>
+
+              <div style={{background:"rgba(255,255,255,.04)",borderRadius:16,padding:16,border:`1px solid ${LC[lvlIdx]}30`,marginBottom:12,animation:shake?"shake .6s ease":"none"}}>
+                <div style={{fontSize:14,fontWeight:600,lineHeight:1.55,marginBottom:10}}>{q.question}</div>
+
+                {q.type === "diagram" && <DoordringendDiagram highlightType={done ? q.diagType : null}/>}
+
+                {q.type === "halvering" && q.halvData && (
+                  <>
+                    <HalveringsVisualisatie n={q.halvData.n} d_half={q.halvData.d_half} toon_berekening={done}/>
+                    <div style={{background:"rgba(251,191,36,.07)",border:"1px solid rgba(251,191,36,.2)",borderRadius:10,padding:12,marginBottom:4}}>
+                      <div style={{fontSize:11,color:"#fbbf24",marginBottom:6}}>📋 GEGEVEN</div>
+                      {q.given.map(([k, v]) => <div key={k} style={{fontSize:13,fontFamily:"monospace",color:"#e2e8f0"}}>{k} = {v}</div>)}
+                    </div>
+                  </>
+                )}
+
+                {q.type === "calc" && q.given && (
+                  <div style={{background:"rgba(251,191,36,.07)",border:"1px solid rgba(251,191,36,.2)",borderRadius:10,padding:12,marginBottom:4}}>
+                    <div style={{fontSize:11,color:"#fbbf24",marginBottom:6}}>📋 GEGEVEN</div>
+                    {q.given.map(([k, v]) => <div key={k} style={{fontSize:13,fontFamily:"monospace",color:"#e2e8f0"}}>{k} = {v}</div>)}
+                  </div>
+                )}
+              </div>
+
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
+                {q.options.map((opt, i) => {
+                  let bg = "rgba(255,255,255,.04)", bdr = "rgba(255,255,255,.1)", col = "#e2e8f0";
+                  if (sel === i && !done) { bg = "rgba(251,191,36,.12)"; bdr = "#fbbf24"; }
+                  if (done) {
+                    if (i === q.answer) { bg = "rgba(52,211,153,.12)"; bdr = "#34d399"; col = "#34d399"; }
+                    else if (i === sel && i !== q.answer) { bg = "rgba(239,68,68,.12)"; bdr = "#ef4444"; col = "#ef4444"; }
+                  }
+                  return (
+                    <button key={i} className={!done?"ob":""} onClick={() => { if (!done) setSel(i); }}
+                      style={{background:bg,border:`1.5px solid ${bdr}`,borderRadius:14,padding:"16px 18px",color:col,fontSize:14,fontWeight:500,cursor:done?"default":"pointer",textAlign:"left",transition:"all .2s",display:"flex",alignItems:"flex-start",gap:12,width:"100%",minHeight:64}}>
+                      <span style={{minWidth:26,height:26,borderRadius:8,background:"rgba(255,255,255,.07)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,flexShrink:0,marginTop:1}}>
+                        {done ? (i === q.answer ? "✓" : i === sel ? "✗" : String.fromCharCode(65+i)) : String.fromCharCode(65+i)}
+                      </span>{opt}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {done && (
+                <div style={{background:correct?"rgba(52,211,153,.08)":"rgba(239,68,68,.08)",border:`1px solid ${correct?"#34d399":"#ef4444"}40`,borderRadius:12,padding:14,marginBottom:12,animation:"popIn .3s ease"}}>
+                  <div style={{fontSize:13,fontWeight:600,color:correct?"#34d399":"#f87171",marginBottom:4}}>
+                    {correct ? "✅ Goed gedaan!" : "❌ Niet helemaal..."}
+                    {correct && streak > 2 && <span style={{marginLeft:8,color:"#fbbf24"}}>🔥 {streak}x streak! +5</span>}
+                  </div>
+                  <div style={{fontSize:13,color:"#cbd5e1",lineHeight:1.6}}>💡 {q.explanation}</div>
+                </div>
+              )}
+
+              {!done ? (
+                <button onClick={handleConfirm} disabled={sel === null} style={{width:"100%",padding:16,background:sel!==null?`linear-gradient(135deg,${LC[lvlIdx]},${LC[(lvlIdx+1)%4]})`:"rgba(255,255,255,.05)",border:"none",borderRadius:12,color:sel!==null?"#0a0f1e":"#475569",fontWeight:700,fontSize:16,cursor:sel!==null?"pointer":"default",transition:"all .2s"}}>
+                  Controleer →
+                </button>
+              ) : (
+                <button onClick={handleNext} style={{width:"100%",padding:14,background:`linear-gradient(135deg,${LC[lvlIdx]},${LC[(lvlIdx+1)%4]})`,border:"none",borderRadius:12,color:"#0a0f1e",fontWeight:700,fontSize:15,cursor:"pointer"}}>
+                  {qIdx+1 < total ? "Volgende vraag →" : "Resultaat bekijken 🏆"}
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* RESULTAAT */}
+          {screen === "result" && (
+            <div style={{animation:"fadeIn .4s ease",textAlign:"center"}}>
+              <div style={{fontSize:72,marginBottom:12,lineHeight:1}}>{stars[lvlIdx]===3?"🏆":stars[lvlIdx]>=2?"🎉":stars[lvlIdx]===1?"💪":"😤"}</div>
+              <h2 style={{fontSize:26,fontWeight:800,margin:"0 0 6px"}}>{level.title} — Klaar!</h2>
+              <div style={{fontSize:14,color:"#94a3b8",marginBottom:20}}>{scores[lvlIdx]} van {total} goed beantwoord</div>
+              <div style={{display:"flex",justifyContent:"center",gap:8,marginBottom:20}}>
+                {[1,2,3].map(s => <span key={s} style={{fontSize:52,opacity:stars[lvlIdx]>=s?1:.2,animation:stars[lvlIdx]>=s?`popIn .4s ease ${s*.15}s both`:"none"}}>⭐</span>)}
+              </div>
+              <div style={{background:"rgba(255,255,255,.04)",borderRadius:12,padding:14,marginBottom:14,border:"1px solid rgba(255,255,255,.06)"}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:7}}>
+                  <span style={{fontSize:13,color:"#94a3b8"}}>Score</span>
+                  <span style={{fontSize:13,fontWeight:700,color:LC[lvlIdx]}}>{Math.round((scores[lvlIdx]/total)*100)}%</span>
+                </div>
+                <div style={{height:7,background:"rgba(255,255,255,.06)",borderRadius:999}}>
+                  <div style={{height:"100%",borderRadius:999,background:`linear-gradient(90deg,${LC[lvlIdx]},${LC[(lvlIdx+1)%4]})`,width:`${(scores[lvlIdx]/total)*100}%`,transition:"width 1s ease"}}/>
+                </div>
+              </div>
+              <div style={{background:"rgba(251,191,36,.06)",borderRadius:12,padding:12,marginBottom:14,border:"1px solid rgba(251,191,36,.15)"}}>
+                <div style={{fontSize:13,color:"#fbbf24"}}>🔥 Langste streak: {maxStr}x &nbsp;|&nbsp; 🎯 Totaal: {pts} punten</div>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+                <button onClick={() => startLevel(lvlIdx)} style={{padding:14,background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.12)",borderRadius:12,color:"#e2e8f0",fontWeight:600,cursor:"pointer",fontSize:14}}>🔄 Opnieuw</button>
+                <button onClick={goHome} style={{padding:14,background:`linear-gradient(135deg,${LC[lvlIdx]},${LC[(lvlIdx+1)%4]})`,border:"none",borderRadius:12,color:"#0a0f1e",fontWeight:700,cursor:"pointer",fontSize:14}}>🏠 Levels</button>
+              </div>
+              {lvlIdx < LEVELS.length - 1 && (
+                <button onClick={() => startLevel(lvlIdx+1)} style={{width:"100%",padding:14,background:LB[lvlIdx+1],border:`1px solid ${LC[lvlIdx+1]}40`,borderRadius:12,color:"#f1f5f9",fontWeight:600,cursor:"pointer",fontSize:14}}>
+                  Volgend level: {LEVELS[lvlIdx+1].icon} {LEVELS[lvlIdx+1].title} →
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* WINKEL */}
+          {screen === "shop" && (
+            <div style={{animation:"fadeIn .35s ease"}}>
+              <div style={{textAlign:"center",marginBottom:20}}>
+                <div style={{display:"flex",justifyContent:"center",marginBottom:10}}><AvatarDisplay avatar={avatar} size={90}/></div>
+                <div style={{fontSize:18,fontWeight:800}}>Jouw Avatar</div>
+                <div style={{fontSize:13,color:"#94a3b8",marginTop:2}}>💰 {pts} punten beschikbaar</div>
+              </div>
+              <div style={{display:"flex",gap:6,marginBottom:14,overflowX:"auto",paddingBottom:4}}>
+                {Object.entries(CAT_LABELS).map(([cat, label]) => (
+                  <button key={cat} onClick={() => setShopCat(cat)} style={{flexShrink:0,padding:"7px 13px",borderRadius:20,border:`1.5px solid ${shopCat===cat?"#60a5fa":"rgba(255,255,255,.1)"}`,background:shopCat===cat?"rgba(96,165,250,.15)":"rgba(255,255,255,.04)",color:shopCat===cat?"#60a5fa":"#94a3b8",fontWeight:600,fontSize:12,cursor:"pointer",transition:"all .15s"}}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
+                {SHOP[shopCat].map(item => {
+                  const isOwned = owned.includes(item.id), isEquipped = avatar[shopCat] === item.id, canAfford = pts >= item.price, justBought = buyFlash === item.id;
+                  return (
+                    <div key={item.id} onClick={() => isOwned ? equipItem(shopCat, item) : buyItem(item)} className="ch"
+                      style={{background:isEquipped?"rgba(96,165,250,.15)":justBought?"rgba(52,211,153,.15)":"rgba(255,255,255,.04)",
+                        border:`1.5px solid ${isEquipped?"#60a5fa":justBought?"#34d399":isOwned?"rgba(255,255,255,.18)":"rgba(255,255,255,.08)"}`,
+                        borderRadius:14,padding:"14px 12px",cursor:(!isOwned&&!canAfford)?"not-allowed":"pointer",
+                        opacity:(!isOwned&&!canAfford)?.45:1,transition:"all .2s",textAlign:"center",position:"relative"}}>
+                      {shopCat==="appbg"
+                        ? <div style={{width:84,height:28,borderRadius:7,background:item.css||item.color,margin:"0 auto 8px",border:"1px solid rgba(255,255,255,.15)"}}/>
+                        : shopCat==="bg"
+                          ? <div style={{width:40,height:40,borderRadius:"50%",background:item.color,margin:"0 auto 8px",border:"2px solid rgba(255,255,255,.15)"}}/>
+                          : <div style={{fontSize:34,marginBottom:6,lineHeight:1}}>{item.emoji||" "}</div>
+                      }
+                      <div style={{fontWeight:600,fontSize:13,color:"#f1f5f9"}}>{item.name}</div>
+                      <div style={{marginTop:5,fontSize:12}}>
+                        {isEquipped ? <span style={{color:"#60a5fa",fontWeight:700}}>✓ Aan</span>
+                          : isOwned ? <span style={{color:"#34d399",fontSize:11}}>In bezit — klik om aan te doen</span>
+                          : justBought ? <span style={{color:"#34d399",fontWeight:700}}>✓ Gekocht!</span>
+                          : <span style={{color:canAfford?"#fbbf24":"#ef4444",fontWeight:600}}>💰 {item.price} punten</span>}
+                      </div>
+                      {isEquipped && <div style={{position:"absolute",top:8,right:8,width:10,height:10,borderRadius:"50%",background:"#60a5fa"}}/>}
+                    </div>
+                  );
+                })}
+              </div>
+              <button onClick={goHome} style={{width:"100%",padding:13,background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.12)",borderRadius:12,color:"#e2e8f0",fontWeight:600,cursor:"pointer",fontSize:14}}>
+                ← Terug naar levels
+              </button>
+            </div>
+          )}
+
+        </div>{/* end main-content */}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+</script>
+</body>
+</html>
