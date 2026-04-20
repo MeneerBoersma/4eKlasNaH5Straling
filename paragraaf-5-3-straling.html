@@ -443,7 +443,7 @@ const LEVELS = [
       },
       {
         type: "text",
-        question: "Welk materiaal stopt β-straling het beste?",
+        question: "Welk materiaal is het minimaal benodigde om β-straling volledig te stoppen?",
         options: [
           "Een vel papier",
           "Een laagje metaal van enkele millimeters",
@@ -451,7 +451,7 @@ const LEVELS = [
           "Lucht van enkele centimeters"
         ],
         answer: 1,
-        explanation: "β-straling kan worden gestopt door een laagje metaal (enkele mm) of enkele centimeters lichaamsweefsel. Papier is te dun; lood is nodig voor γ-straling."
+        explanation: "β-straling wordt volledig gestopt door een paar millimeter metaal. Papier is te dun. Loodplaten werken ook, maar zijn overdreven zwaar voor β — lood is nodig voor γ-straling."
       },
     ]
   },
@@ -752,6 +752,95 @@ function App() {
                   </div>
                 ))}
               </div>
+              <button onClick={() => setScreen("theorie")} className="ch" style={{marginTop:12,width:"100%",padding:"11px",background:"linear-gradient(135deg,#1e3a5f,#1e293b)",border:"1px solid rgba(96,165,250,.25)",borderRadius:12,color:"#93c5fd",fontWeight:600,cursor:"pointer",fontSize:12,display:"flex",alignItems:"center",justifyContent:"center",gap:7}}>
+                📖 Theorieoverzicht
+              </button>
+            </div>
+          )}
+
+          {/* THEORIE */}
+          {screen === "theorie" && (
+            <div style={{animation:"fadeIn .4s ease"}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:20}}>
+                <button onClick={goHome} style={{background:"rgba(255,255,255,.07)",border:"1px solid rgba(255,255,255,.12)",borderRadius:8,padding:"5px 10px",color:"#94a3b8",cursor:"pointer",fontSize:12}}>← Terug</button>
+                <h2 style={{fontSize:20,fontWeight:800,margin:0}}>📖 Theorie — §5.3 Ioniserend en Doordringend</h2>
+              </div>
+
+              {/* Blok 1: Ioniserend vermogen */}
+              <div style={{background:"rgba(249,115,22,.08)",border:"1px solid rgba(249,115,22,.25)",borderRadius:14,padding:16,marginBottom:14}}>
+                <div style={{fontWeight:800,fontSize:15,color:"#fb923c",marginBottom:10}}>⚡ Ioniserend vermogen</div>
+                <p style={{fontSize:13,color:"#cbd5e1",lineHeight:1.7,marginBottom:12}}>
+                  Ioniserende straling heeft genoeg energie om <strong style={{color:"#f1f5f9"}}>elektronen uit atomen te slaan</strong>. Dit heet ionisatie. Hoe meer ionisaties per centimeter, hoe meer schade aan weefsel.
+                </p>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+                  {[
+                    {sym:"α",naam:"Alfa",kleur:"#f97316",iv:"Zeer hoog",dv:"Papier / huid",info:"Groot, zwaar, langzaam → veel botsingen per cm"},
+                    {sym:"β",naam:"Beta",kleur:"#a855f7",iv:"Middel",dv:"Enkele mm metaal",info:"Klein, snel → minder botsingen dan α"},
+                    {sym:"γ",naam:"Gamma",kleur:"#ef4444",iv:"Laag",dv:"Dik lood / beton",info:"Geen massa → zelden ionisatie, maar dringt overal door"},
+                  ].map((t,i)=>(
+                    <div key={i} style={{background:t.kleur+"18",border:`1px solid ${t.kleur}40`,borderRadius:10,padding:10,textAlign:"center"}}>
+                      <div style={{fontSize:26,fontWeight:900,color:t.kleur,marginBottom:4}}>{t.sym}</div>
+                      <div style={{fontSize:12,fontWeight:700,color:"#f1f5f9",marginBottom:4}}>{t.naam}</div>
+                      <div style={{fontSize:11,color:"#94a3b8",marginBottom:4}}>{t.info}</div>
+                      <div style={{fontSize:10,background:"rgba(0,0,0,.25)",borderRadius:6,padding:"3px 6px",color:t.kleur,fontWeight:700,marginBottom:3}}>IV: {t.iv}</div>
+                      <div style={{fontSize:10,color:"#64748b"}}>Stopt bij: {t.dv}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{marginTop:10,fontSize:12,color:"#94a3b8",fontStyle:"italic"}}>
+                  Ezelsbruggetje: α is het meest ioniserend maar het minst doordringend. γ is het minst ioniserend maar het meest doordringend.
+                </div>
+              </div>
+
+              {/* Blok 2: Dracht en halveringsdikte */}
+              <div style={{background:"rgba(99,102,241,.08)",border:"1px solid rgba(99,102,241,.25)",borderRadius:14,padding:16,marginBottom:14}}>
+                <div style={{fontWeight:800,fontSize:15,color:"#818cf8",marginBottom:10}}>📏 Dracht en halveringsdikte</div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+                  <div style={{background:"rgba(99,102,241,.1)",borderRadius:10,padding:12,border:"1px solid rgba(99,102,241,.3)"}}>
+                    <div style={{fontWeight:700,color:"#a5b4fc",marginBottom:6,fontSize:13}}>DRACHT (α en β)</div>
+                    <div style={{fontSize:12,color:"#cbd5e1",lineHeight:1.6}}>De <strong style={{color:"#f1f5f9"}}>maximale afstand</strong> die een deeltje aflegt in een bepaald materiaal voordat het volledig is gestopt. α-straling heeft een dracht van enkele cm in lucht.</div>
+                  </div>
+                  <div style={{background:"rgba(99,102,241,.1)",borderRadius:10,padding:12,border:"1px solid rgba(99,102,241,.3)"}}>
+                    <div style={{fontWeight:700,color:"#a5b4fc",marginBottom:6,fontSize:13}}>HALVERINGSDIKTE (γ)</div>
+                    <div style={{fontSize:12,color:"#cbd5e1",lineHeight:1.6}}>De dikte materiaal waarbij de intensiteit van γ-straling <strong style={{color:"#f1f5f9"}}>halveert</strong>. γ heeft geen vaste dracht — de intensiteit neemt exponentieel af.</div>
+                  </div>
+                </div>
+                <div style={{background:"rgba(0,0,0,.25)",borderRadius:10,padding:12,border:"1px solid rgba(99,102,241,.3)"}}>
+                  <div style={{fontSize:11,color:"#64748b",marginBottom:6,fontWeight:700,letterSpacing:.5}}>FORMULE — HALVERINGSDIKTE</div>
+                  <div style={{fontSize:16,color:"#a5b4fc",fontFamily:"monospace",fontWeight:700,textAlign:"center",marginBottom:6}}>I = I₀ · (½)ⁿ</div>
+                  <div style={{fontSize:12,color:"#94a3b8",lineHeight:1.6}}>
+                    <strong style={{color:"#e2e8f0"}}>I₀</strong> = beginintensiteit &nbsp;·&nbsp; <strong style={{color:"#e2e8f0"}}>n</strong> = aantal halverende lagen &nbsp;·&nbsp; <strong style={{color:"#e2e8f0"}}>I</strong> = resterende intensiteit
+                  </div>
+                  <div style={{marginTop:8,fontSize:12,color:"#93c5fd",background:"rgba(96,165,250,.08)",borderRadius:8,padding:"6px 10px",border:"1px solid rgba(96,165,250,.2)"}}>
+                    Voorbeeld: halveringsdikte lood = 1 cm. Na 3 cm lood is de intensiteit: I₀ · (½)³ = I₀ / 8
+                  </div>
+                </div>
+              </div>
+
+              {/* Blok 3: Bescherming */}
+              <div style={{background:"rgba(34,197,94,.08)",border:"1px solid rgba(34,197,94,.25)",borderRadius:14,padding:16,marginBottom:14}}>
+                <div style={{fontWeight:800,fontSize:15,color:"#4ade80",marginBottom:10}}>🛡️ Bescherming tegen ioniserende straling</div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}}>
+                  {[
+                    {titel:"Afstand",kleur:"#4ade80",icon:"📐",uitleg:"Intensiteit neemt af met het kwadraat van de afstand. Dubbele afstand = kwart intensiteit."},
+                    {titel:"Afscherming",kleur:"#22d3ee",icon:"🧱",uitleg:"Gebruik het juiste materiaal: papier (α), metaal (β), dik lood of beton (γ)."},
+                    {titel:"Tijd",kleur:"#fbbf24",icon:"⏱️",uitleg:"Korter blootstaan = minder dosis. Beperk verblijfstijd bij stralingsbronnen."},
+                  ].map((t,i)=>(
+                    <div key={i} style={{background:t.kleur+"12",border:`1px solid ${t.kleur}35`,borderRadius:10,padding:12,textAlign:"center"}}>
+                      <div style={{fontSize:24,marginBottom:6}}>{t.icon}</div>
+                      <div style={{fontWeight:700,color:t.kleur,marginBottom:6,fontSize:13}}>{t.titel}</div>
+                      <div style={{fontSize:11,color:"#cbd5e1",lineHeight:1.5}}>{t.uitleg}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{background:"rgba(239,68,68,.08)",borderRadius:8,padding:"8px 10px",fontSize:12,color:"#fca5a5",border:"1px solid rgba(239,68,68,.2)"}}>
+                  ⚠️ α-straling is extern nauwelijks gevaarlijk (stopt bij huid), maar <strong>intern zeer gevaarlijk</strong> bij inslikken of inademen — dan zit de bron direct bij kwetsbare cellen.
+                </div>
+              </div>
+
+              <button onClick={goHome} style={{width:"100%",padding:13,background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.12)",borderRadius:12,color:"#e2e8f0",fontWeight:600,cursor:"pointer",fontSize:14}}>
+                ← Terug naar levels
+              </button>
             </div>
           )}
 
