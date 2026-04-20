@@ -127,7 +127,7 @@ function stralingPersist(data) {
 function stralingGetTotalStars(save) {
   var s = save || stralingLoadSave();
   var total = 0;
-  ["stars_51", "stars_52"].forEach(function(k) {
+  ["stars_51", "stars_52", "stars_53"].forEach(function(k) {
     var arr = s[k];
     if (Array.isArray(arr)) arr.forEach(function(v) { total += (v || 0); });
   });
@@ -138,9 +138,9 @@ function stralingGetTotalStars(save) {
 function stralingGetMaxStars(save) {
   var s = save || stralingLoadSave();
   var max = 0;
-  ["stars_51", "stars_52"].forEach(function(k) {
+  ["stars_51", "stars_52", "stars_53"].forEach(function(k) {
     var arr = s[k];
     if (Array.isArray(arr)) max += arr.length * 3;
   });
-  return max || 24; // §5.1 + §5.2 hebben elk 4 levels × 3 sterren
+  return max || 36; // §5.1 + §5.2 + §5.3 hebben elk 4 levels × 3 sterren
 }

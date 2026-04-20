@@ -578,7 +578,7 @@ function App(){
       const raw=localStorage.getItem(SAVE_KEY);
       if(raw){
         const d=JSON.parse(raw);
-        if(d.avatar) setAvatar({...DEFAULT_AVATAR,...d.avatar});
+        if(d.avatar) { const av={...DEFAULT_AVATAR,...d.avatar}; setAvatar(av); applyAppBackground(av); }
         if(d.owned)  setOwned(d.owned);
         if(d.pts!==undefined) setPts(d.pts);
         if(d.stars_52) setStars(d.stars_52);
@@ -603,6 +603,7 @@ function App(){
   const equipItem=(cat,item)=>{
     if(!owned.includes(item.id)) return;
     const na={...avatar,[cat]:item.id};setAvatar(na);persist(na,owned,pts);
+    if(cat==="appbg") applyAppBackground(na);
   };
 
   const lvl=LEVELS[lvlIdx];
