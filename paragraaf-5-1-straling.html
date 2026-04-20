@@ -29,6 +29,7 @@ const DEFAULT_OWNED = STRALING_DEFAULT_OWNED;
 const SAVE_KEY      = STRALING_SAVE_KEY;
 const resolveAvatar = stralingResolveAvatar;
 const renderAvatarHTML = stralingRenderAvatarHTML;
+const applyAppBackground = stralingApplyAppBackground;
 function AvatarDisplay({avatar,size=64}){
   return <span dangerouslySetInnerHTML={{__html:renderAvatarHTML(avatar,size)}} style={{display:"contents"}}/>;
 }

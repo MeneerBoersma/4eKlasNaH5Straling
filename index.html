@@ -160,25 +160,20 @@
         </div>
       </a>
 
-      <!-- §5.3 — ONDER CONSTRUCTIE -->
-      <div class="card" onclick="toonConstructieMelding('§5.3 Ioniserend en doordringend')"
-        style="background:linear-gradient(135deg,#1c1917,#292524);
-          border:1px solid rgba(120,113,108,.3);border-radius:18px;padding:18px 20px;
+      <!-- §5.3 — ACTIEF -->
+      <a href="paragraaf-5-3-straling.html" class="card" style="text-decoration:none;
+          background:linear-gradient(135deg,#052e16,#14532d);
+          border:1px solid rgba(52,211,153,.25);border-radius:18px;padding:18px 20px;
           display:flex;align-items:center;gap:16px;position:relative">
-        <div style="font-size:38px;flex-shrink:0;opacity:.5">⚡</div>
+        <div style="font-size:38px;flex-shrink:0">⚡</div>
         <div style="flex:1">
-          <div style="font-size:11px;color:#78716c;font-weight:700;letter-spacing:.5px;margin-bottom:2px">§ 5.3</div>
-          <div style="font-weight:800;font-size:16px;margin-bottom:3px;color:#a8a29e">Ioniserend en doordringend</div>
-          <div style="font-size:12px;color:rgba(255,255,255,.35)">Stralingseigenschappen · bescherming</div>
-          <div style="margin-top:7px;display:inline-flex;align-items:center;gap:5px;
-            background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.3);
-            border-radius:20px;padding:2px 8px">
-            <span style="font-size:10px">🔧</span>
-            <span style="font-size:10px;color:#fbbf24;font-weight:700">Onder constructie</span>
-          </div>
+          <div style="font-size:11px;color:#6ee7b7;font-weight:700;letter-spacing:.5px;margin-bottom:2px">§ 5.3</div>
+          <div style="font-weight:800;font-size:16px;margin-bottom:3px;color:#f1f5f9">Ioniserend en doordringend</div>
+          <div style="font-size:12px;color:rgba(255,255,255,.55)">Stralingseigenschappen · bescherming</div>
+          <div style="margin-top:7px;display:flex;gap:3px" id="stars-53"></div>
         </div>
-        <div style="font-size:22px;color:rgba(255,255,255,.15)">›</div>
-      </div>
+        <div style="font-size:22px;color:rgba(255,255,255,.4)">›</div>
+      </a>
 
       <!-- §5.4 — ONDER CONSTRUCTIE -->
       <div class="card" onclick="toonConstructieMelding('§5.4 Activiteit en halveringstijd')"
@@ -499,6 +494,10 @@ function init() {
   // Sterren §5.2
   var stars52 = save.stars_52 || [];
   renderStars("stars-52", stars52);
+
+  // Sterren §5.3
+  var stars53 = save.stars_53 || [];
+  renderStars("stars-53", stars53);
 
   // Totaal sterren
   var totalStars = stralingGetTotalStars(save);

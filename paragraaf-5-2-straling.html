@@ -29,6 +29,7 @@ const DEFAULT_OWNED = STRALING_DEFAULT_OWNED;
 const SAVE_KEY      = STRALING_SAVE_KEY;
 const resolveAvatar = stralingResolveAvatar;
 const renderAvatarHTML = stralingRenderAvatarHTML;
+const applyAppBackground = stralingApplyAppBackground;
 function AvatarDisplay({avatar,size=64}){
   return <span dangerouslySetInnerHTML={{__html:renderAvatarHTML(avatar,size)}} style={{display:"contents"}}/>;
 }
@@ -941,7 +942,7 @@ function App(){
                   <div style={{fontSize:12,fontWeight:700,color:"#64748b",marginBottom:12,letterSpacing:.5}}>NOTATIE — DRIE ISOTOPEN VAN WATERSTOF</div>
                   <div style={{display:"flex",gap:16,justifyContent:"center",flexWrap:"wrap",marginBottom:12}}>
                     {ALL_NUCLIDES.slice(0,3).map((n,i)=>(
-                      <div key={i} style={{textAlign:"center"}}>
+                      <div key={i} style={{display:"flex",flexDirection:"column",alignItems:"center"}}>
                         <NuclideBlok n={n} size={80}/>
                         <div style={{fontSize:12,fontWeight:700,color:n.kleur,marginTop:6}}>{n.naam}</div>
                         <div style={{fontSize:11,color:"#94a3b8",marginTop:2}}>
@@ -961,7 +962,7 @@ function App(){
                   <div style={{fontSize:12,fontWeight:700,color:"#64748b",marginBottom:12,letterSpacing:.5}}>VOORBEELD — KOOLSTOFISOTOPEN</div>
                   <div style={{display:"flex",gap:20,justifyContent:"center",flexWrap:"wrap",marginBottom:8}}>
                     {[ALL_NUCLIDES[3], ALL_NUCLIDES[4]].map((n,i)=>(
-                      <div key={i} style={{textAlign:"center"}}>
+                      <div key={i} style={{display:"flex",flexDirection:"column",alignItems:"center"}}>
                         <NuclideBlok n={n} size={80}/>
                         <div style={{fontSize:12,fontWeight:700,color:n.kleur,marginTop:6}}>{n.naam}</div>
                         <div style={{fontSize:11,color:"#94a3b8",marginTop:2}}>{n.Z} protonen · {n.N} neutronen</div>
